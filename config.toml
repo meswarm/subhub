@@ -1,0 +1,14 @@
+[data]
+path = "/home/txl/Code/meswarm/notes/vault/subhub"
+filename = "subscriptions.json"
+
+[llm]
+model = "qwen3.5-flash"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+[reminder]
+advance_days = 3
+check_interval_hours = 1
+
+[report]
+base_currency = "CNY"  # 月度报表汇总货币
