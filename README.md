@@ -1,4 +1,4 @@
-![许可证](https://img.shields.io/github/license/OWNER/REPO?label=许可证)
+![许可证](https://img.shields.io/github/license/meswarm/subhub?label=许可证)
 
 [![语言-中文](https://img.shields.io/badge/语言-中文-green)](README.md)
 [![Language-English](https://img.shields.io/badge/Language-English-blue)](README_EN.md)
@@ -29,7 +29,7 @@ SubHub 通过自然语言对话管理你的所有订阅服务。内置大模型�
 ### 安装
 
 ```bash
-git clone https://github.com/OWNER/REPO.git
+git clone https://github.com/meswarm/subhub.git
 cd subhub
 uv pip install -e .
 ```

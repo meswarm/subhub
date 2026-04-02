@@ -1,4 +1,4 @@
-![License](https://img.shields.io/github/license/OWNER/REPO)
+![License](https://img.shields.io/github/license/meswarm/subhub)
 
 [![语言-中文](https://img.shields.io/badge/语言-中文-green)](README.md)
 [![Language-English](https://img.shields.io/badge/Language-English-blue)](README_EN.md)
@@ -29,7 +29,7 @@ SubHub manages all your subscription services through natural language conversat
 ### Installation
 
 ```bash
-git clone https://github.com/OWNER/REPO.git
+git clone https://github.com/meswarm/subhub.git
 cd subhub
 uv pip install -e .
 ```
