@@ -29,16 +29,15 @@ def test_check_reminders_dismissed(tmp_path):
     sub = store.add(name="已确认", account="a", payment_channel="b",
                     amount=10.0, currency="CNY", billing_cycle="monthly",
                     next_billing_date="2026-04-06", notes="")
-    from subhub.tools import _dismissed_reminders, clear_dismissed_reminders
-    clear_dismissed_reminders()
-    _dismissed_reminders.add(sub.id)
+    from datetime import date as _date
+    store.dismiss_reminder(sub.id, _date(2026, 4, 3))
     output = check_reminders(store, today=date(2026, 4, 3), advance_days=3)
     assert output is None
-    clear_dismissed_reminders()
+    store.clear_dismissed_reminders()
 
 
 def test_check_reminders_auto_advances_expired(tmp_path):
-    """测试提醒检查时自动推进已过期订阅。"""
+    """测试提醒检查时自动推进已过期订阅（循环推进直到不再过期）。"""
     store = SubscriptionStore(tmp_path / "subs.json")
     store.add(name="已过期", account="a", payment_channel="b",
               amount=10.0, currency="CNY", billing_cycle="monthly",
@@ -46,6 +45,6 @@ def test_check_reminders_auto_advances_expired(tmp_path):
     # 检查不会提醒（因为推进后日期不在 advance_days 范围内）
     output = check_reminders(store, today=date(2026, 4, 3), advance_days=3)
     assert output is None
-    # 但扣款日已被推进
+    # 但扣款日已被循环推进到 today 之后
     subs = store.list_all()
-    assert subs[0].next_billing_date == "2026-04-01"
+    assert subs[0].next_billing_date == "2026-05-01"

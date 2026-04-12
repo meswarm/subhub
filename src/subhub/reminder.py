@@ -7,7 +7,6 @@ from typing import Optional, Callable
 
 from subhub.store import SubscriptionStore
 from subhub.display import format_reminder_table, format_monthly_report
-from subhub.tools import get_dismissed_reminders, clear_dismissed_reminders
 
 
 def check_reminders(store: SubscriptionStore, today: date,
@@ -17,7 +16,7 @@ def check_reminders(store: SubscriptionStore, today: date,
     store.auto_advance_expired(today)
 
     upcoming = store.get_upcoming(today, advance_days)
-    dismissed = get_dismissed_reminders()
+    dismissed = store.get_dismissed_reminders(today)
     upcoming = [s for s in upcoming if s.id not in dismissed]
     if not upcoming:
         return None
@@ -51,7 +50,7 @@ class ReminderThread(threading.Thread):
         while not self._stop_event.is_set():
             today = date.today()
             if self._last_check_date and self._last_check_date != today:
-                clear_dismissed_reminders()
+                self.store.clear_dismissed_reminders()
             self._last_check_date = today
 
             # 扣款提醒

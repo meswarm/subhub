@@ -1,22 +1,24 @@
-![License](https://img.shields.io/github/license/meswarm/subhub)
+![Version](https://img.shields.io/github/v/release/meswarm/subhub?label=Version)
+![License](https://img.shields.io/github/license/meswarm/subhub?label=License)
 
-[![语言-中文](https://img.shields.io/badge/语言-中文-green)](README.md)
+[![语言-中文](https://img.shields.io/badge/语言-中文-red)](README.md)
 [![Language-English](https://img.shields.io/badge/Language-English-blue)](README_EN.md)
 
 # SubHub
 
-> A terminal-based personal subscription manager powered by LLM Function Calling
+> An API-first personal subscription manager for Link and other agent middleware
 
-SubHub manages all your subscription services through natural language conversation. It features an AI assistant driven by LLM, supporting CRUD operations, automatic billing date calculation, proactive renewal reminders (3 days in advance), and monthly cost summary reports. Whether monthly, yearly, or perpetual — SubHub handles them all.
+SubHub is a FastAPI-based personal subscription management service designed for Link and similar agent middleware. It exposes HTTP APIs, proactive webhook reminders, monthly reports, and local JSON storage to manage monthly, quarterly, semiannual, yearly, weekly, daily, custom, and perpetual subscriptions in one place.
 
 ## Tech Stack
 
 | Category | Technology |
 |----------|-----------|
 | Language | Python 3.12+ |
-| LLM | qwen3.5-flash (OpenAI-compatible API) |
+| Framework | FastAPI + Uvicorn |
 | Package Manager | uv + hatchling |
 | Data Storage | JSON file |
+| Key Libraries | Pydantic, python-dotenv |
 | Testing | pytest |
 
 ## Getting Started
@@ -31,17 +33,20 @@ SubHub manages all your subscription services through natural language conversat
 ```bash
 git clone https://github.com/meswarm/subhub.git
 cd subhub
-uv pip install -e .
+uv sync
 ```
 
 ### Configuration
 
-```bash
-cp .env.example .env
-# Edit .env with your DashScope API Key
-```
+Edit `config.toml` to customize data path, API listen address, reminder parameters, report currency, and webhook URL.
 
-Customize data path, reminder parameters, and report currency in `config.toml`.
+Example:
+
+```toml
+[server]
+host = "127.0.0.1"
+port = 58000
+```
 
 ### Running locally
 
@@ -49,46 +54,78 @@ Customize data path, reminder parameters, and report currency in `config.toml`.
 uv run subhub
 ```
 
+By default, SubHub reads `host` and `port` from `[server]` in `config.toml`. You can still override them with `--host` and `--port`.
+
+### Run tests
+
+```bash
+uv run pytest
+```
+
 ## Project Structure
 
 ```
 subhub/
 ├── config.toml             # Application config
-├── .env.example            # Environment variable template
-├── pyproject.toml          # Project metadata & dependencies
+├── docs/                   # Design docs and manuals
+├── link/                   # Link agent config and skills
+├── pyproject.toml          # Project metadata and dependencies
 ├── src/subhub/
+│   ├── api.py              # FastAPI HTTP API
 │   ├── config.py           # Config loader
-│   ├── store.py            # JSON data storage layer
 │   ├── display.py          # Markdown formatting output
-│   ├── tools.py            # LLM Function Calling tools
 │   ├── reminder.py         # Background reminder thread
-│   ├── chat.py             # LLM conversation module
+│   ├── service.py          # Business service layer
+│   ├── store.py            # JSON data storage layer
+│   ├── webhook.py          # Link webhook client
 │   └── main.py             # Entry point
 └── tests/                  # Unit tests
 ```
 
 ## Usage
 
-Start the app and interact with the assistant using natural language:
+### Start the API service
 
-```
-You: I just subscribed to QQ Music, 12 CNY/month via Alipay, account QQ12800
-Assistant: ✅ Subscription added: QQ Music
-
-You: Show me all my subscriptions
-Assistant: | Service | Amount | Cycle | Next Billing | ...
-
-You: How much am I spending this month?
-Assistant: 📊 2026-04 Monthly Subscription Report ...
+```bash
+uv run subhub
 ```
 
-### Key Features
+### List subscriptions
 
-- **CRUD** — Manage subscriptions with natural language
-- **Smart Date Calculation** — Auto-compute next billing date (monthly +1 month, yearly +1 year, etc.)
-- **Billing Reminders** — Alerts 3 days before renewal, checks hourly, stops after acknowledgment
-- **Monthly Reports** — Auto-generated at month-end, multi-currency support
-- **Perpetual Memberships** — One-time purchases managed alongside recurring subscriptions
+```bash
+curl http://127.0.0.1:58000/api/subscriptions
+```
+
+### Create a subscription
+
+```bash
+curl -X POST http://127.0.0.1:58000/api/subscriptions \
+	-H "Content-Type: application/json" \
+	-d '{
+		"name": "YouTube Premium",
+		"account": "me@example.com",
+		"payment_channel": "Visa",
+		"amount": 28,
+		"currency": "CNY",
+		"billing_cycle": "monthly",
+		"next_billing_date": "2026-05-01",
+		"notes": "家庭组"
+	}'
+```
+
+### Generate a monthly report
+
+```bash
+curl "http://127.0.0.1:58000/api/reports/monthly?month=2026-04&mode=budget"
+```
+
+### Start Link
+
+```bash
+ltool start link/agents/subhub.yaml
+```
+
+Before starting Link, make sure the SubHub API is already running and the `endpoint` values in [link/agents/subhub.yaml](link/agents/subhub.yaml) match the `[server]` settings in [config.toml](config.toml).
 
 ## Contributing
 

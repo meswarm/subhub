@@ -10,6 +10,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
+.project
+.classpath
+.settings/
 
 # === Python bytecode ===
 __pycache__/
@@ -20,6 +23,7 @@ __pycache__/
 .venv/
 venv/
 env/
+.python-version
 
 # === Distribution / build ===
 dist/
@@ -33,6 +37,7 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+.ipynb_checkpoints/
 
 # === Environment & secrets ===
 .env
@@ -40,3 +45,11 @@ htmlcov/
 !.env.example
 *.pem
 *.key
+*.p12
+
+# === Logs ===
+*.log
+
+# === Runtime data ===
+db/
+inbox/
