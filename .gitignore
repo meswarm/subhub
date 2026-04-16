@@ -53,3 +53,4 @@ htmlcov/
 # === Runtime data ===
 db/
 inbox/
+media_cache/

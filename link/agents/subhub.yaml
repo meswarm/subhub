@@ -264,3 +264,5 @@ webhook:
     - path: "/alert"
       urgent: true
       description: "SubHub 主动推送的扣款提醒文本"
+
+media_storage: "r2" 

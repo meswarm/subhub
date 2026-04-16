@@ -66,6 +66,7 @@ uv run pytest
 
 ```
 subhub/
+├── LICENSE                 # MIT license
 ├── config.toml             # Application config
 ├── docs/                   # Design docs and manuals
 ├── link/                   # Link agent config and skills
