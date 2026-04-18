@@ -8,7 +8,7 @@
 
 > An API-first personal subscription manager for Link and other agent middleware
 
-SubHub is a FastAPI-based personal subscription management service designed for Link and similar agent middleware. It exposes HTTP APIs, proactive webhook reminders, monthly reports, and local JSON storage to manage monthly, quarterly, semiannual, yearly, weekly, daily, custom, and perpetual subscriptions in one place.
+SubHub is a FastAPI-based personal subscription management service designed for Link and similar agent middleware. It exposes HTTP APIs, proactive webhook reminders, monthly reports, and local JSON storage to manage monthly, quarterly, semiannual, yearly, weekly, daily, custom, and perpetual subscriptions in one place. The default reply style is optimized for mobile reading: result-first, concise, and limited in unnecessary Markdown decoration.
 
 ## Tech Stack
 
@@ -17,6 +17,7 @@ SubHub is a FastAPI-based personal subscription management service designed for 
 | Language | Python 3.12+ |
 | Framework | FastAPI + Uvicorn |
 | Package Manager | uv + hatchling |
+| Task runner | Make |
 | Data Storage | JSON file |
 | Key Libraries | Pydantic, python-dotenv |
 | Testing | pytest |
@@ -27,14 +28,17 @@ SubHub is a FastAPI-based personal subscription management service designed for 
 
 - Python >= 3.12
 - [uv](https://docs.astral.sh/uv/) package manager
+- GNU Make (usually preinstalled; used to wrap common commands via `Makefile`)
 
 ### Installation
 
 ```bash
 git clone https://github.com/meswarm/subhub.git
 cd subhub
-uv sync
+make sync
 ```
+
+`make sync` runs `uv sync`, so you do not need to create or activate a virtual environment by hand.
 
 ### Configuration
 
@@ -51,22 +55,27 @@ port = 58000
 ### Running locally
 
 ```bash
-uv run subhub
+make run
 ```
 
-By default, SubHub reads `host` and `port` from `[server]` in `config.toml`. You can still override them with `--host` and `--port`.
+By default, SubHub reads `host` and `port` from `[server]` in `config.toml`. To override: `make run ARGS="--host 0.0.0.0 --port 8080"`.
 
 ### Run tests
 
 ```bash
-uv run pytest
+make test
 ```
+
+### Equivalent uv commands
+
+Without Make, or for scripts, use the same steps directly: `uv sync`, `uv run subhub`, and `uv run pytest` (same as the `make` targets above).
 
 ## Project Structure
 
 ```
 subhub/
 ├── LICENSE                 # MIT license
+├── Makefile                # make sync / run / test (wraps uv)
 ├── config.toml             # Application config
 ├── docs/                   # Design docs and manuals
 ├── link/                   # Link agent config and skills
@@ -88,7 +97,7 @@ subhub/
 ### Start the API service
 
 ```bash
-uv run subhub
+make run
 ```
 
 ### List subscriptions

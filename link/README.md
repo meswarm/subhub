@@ -13,7 +13,7 @@
 
 1. 启动 SubHub API
 
-   `uv run subhub`
+   在仓库根目录执行 `make run`（底层为 `uv run subhub`，无需手动激活虚拟环境）。
 
    如果 [config.toml](../config.toml) 已配置 `webhook.url`，这个进程会同时启用主动提醒，无需再单独启动一次。
 

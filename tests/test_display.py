@@ -38,9 +38,11 @@ def test_format_subscriptions_table():
 def test_format_reminder_table():
     subs = [_make_sub(name="QQ音乐", amount=12.0)]
     table = format_reminder_table(subs, remind_date="2026-04-06", today="2026-04-03")
-    assert "⚠️" in table
+    assert table.startswith("## 订阅扣款提醒")
+    assert "⚠️" not in table
     assert "QQ音乐" in table
     assert "04-06" in table
+    assert '回复"知道了"可关闭本次提醒' not in table
 
 
 def test_format_empty():
@@ -67,6 +69,9 @@ def test_format_monthly_report():
     assert "合计" in report
     assert "2026-04" in report
     assert "预算" in report  # 新标题包含"预算"
+    assert report.startswith("## 2026-04 月度订阅预算报表")
+    assert "📊" not in report
+    assert "你可以让我分析一下这份报表" not in report
 
 
 def test_format_actual_billing_report():
@@ -78,8 +83,12 @@ def test_format_actual_billing_report():
     assert "QQ音乐" in report
     assert "实际扣款" in report
     assert "合计" in report
+    assert report.startswith("## 2026-04 实际扣款报表")
+    assert "📊" not in report
+    assert "这是本月实际发生的扣款统计" not in report
 
 
 def test_format_actual_billing_report_empty():
     report = format_actual_billing_report([], month="2026-04", base_currency="CNY")
     assert "无扣款" in report
+    assert report.startswith("## 2026-04 实际扣款报表")

@@ -72,8 +72,9 @@ def format_reminder_table(subs: list[Subscription], remind_date: str,
     if not subs:
         return ""
     rd_short = remind_date[5:]
-    header = f"⚠️ 订阅扣款提醒 ({today})\n"
-    header += f"以下订阅将在 {rd_short} 扣款：\n\n"
+    header = "## 订阅扣款提醒\n"
+    header += f"- 日期：{today}\n"
+    header += f"- 将在 {rd_short} 扣款：\n\n"
     lines = [
         "| 服务名称 | 金额 | 支付渠道 | 登录账号 |",
         "|----------|------|----------|----------|",
@@ -83,8 +84,7 @@ def format_reminder_table(subs: list[Subscription], remind_date: str,
         lines.append(
             f"| {s.name} | {amount_str} | {s.payment_channel} | {s.account} |"
         )
-    footer = '\n\n💡 回复"知道了"可关闭本次提醒。'
-    return header + "\n".join(lines) + footer
+    return header + "\n".join(lines)
 
 
 def format_monthly_report(subs: list[Subscription], month: str,
@@ -94,10 +94,10 @@ def format_monthly_report(subs: list[Subscription], month: str,
     recurring = [s for s in subs if s.billing_cycle not in ("permanent", "custom")]
 
     if not recurring:
-        return f"📊 {month} 月度订阅预算报表\n\n暂无周期性订阅。"
+        return f"## {month} 月度订阅预算报表\n\n暂无周期性订阅。"
 
     symbol = CURRENCY_SYMBOLS.get(base_currency, base_currency)
-    header = f"📊 {month} 月度订阅预算报表\n\n"
+    header = f"## {month} 月度订阅预算报表\n\n"
     lines = [
         f"| 服务名称 | 原始金额 | 周期 | 折算月费({symbol}) |",
         f"|----------|----------|------|------------------|",
@@ -112,18 +112,17 @@ def format_monthly_report(subs: list[Subscription], month: str,
         lines.append(f"| {s.name} | {orig} | {cycle} | {symbol}{converted:.2f} |")
 
     lines.append(f"| **合计** | | | **{symbol}{total:.2f}** |")
-    footer = "\n\n💡 你可以让我分析一下这份报表。"
-    return header + "\n".join(lines) + footer
+    return header + "\n".join(lines)
 
 
 def format_actual_billing_report(subs: list[Subscription], month: str,
                                   base_currency: str = "CNY") -> str:
     """生成月度实际扣款报表（仅包含本月有扣款日的订阅）。"""
     if not subs:
-        return f"📊 {month} 实际扣款报表\n\n本月无扣款记录。"
+        return f"## {month} 实际扣款报表\n\n本月无扣款记录。"
 
     symbol = CURRENCY_SYMBOLS.get(base_currency, base_currency)
-    header = f"📊 {month} 实际扣款报表\n\n"
+    header = f"## {month} 实际扣款报表\n\n"
     lines = [
         f"| 服务名称 | 金额 | 扣款日 | 折算({symbol}) |",
         f"|----------|------|--------|----------------|",
@@ -137,5 +136,4 @@ def format_actual_billing_report(subs: list[Subscription], month: str,
         lines.append(f"| {s.name} | {orig} | {billing_date} | {symbol}{converted:.2f} |")
 
     lines.append(f"| **合计** | | | **{symbol}{total:.2f}** |")
-    footer = "\n\n💡 这是本月实际发生的扣款统计。"
-    return header + "\n".join(lines) + footer
+    return header + "\n".join(lines)

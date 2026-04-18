@@ -6,11 +6,13 @@
 
 ## 启动方式
 
+在仓库根目录：
+
 ```bash
-uv run subhub
+make run
 ```
 
-启动 HTTP API 服务。若已配置 [webhook]，同一进程会同时启用主动提醒推送。
+等价命令：`uv run subhub`。若已配置 [webhook]，同一进程会同时启用主动提醒推送。
 
 监听地址默认读取 `config.toml` 中的 `[server]` 配置，例如：
 
@@ -20,7 +22,9 @@ host = "127.0.0.1"
 port = 58000
 ```
 
-也可通过 `--host` / `--port` 临时覆盖。
+也可通过 `--host` / `--port` 临时覆盖，例如：`make run ARGS="--host 0.0.0.0 --port 8080"`。
+
+首次安装依赖可在仓库根目录执行 `make sync`（等价于 `uv sync`）。
 
 常用接口示例：
 
