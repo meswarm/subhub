@@ -143,15 +143,17 @@ def create_app(config: AppConfig | None = None,
 
     @app.delete("/api/subscriptions/{subscription_id}")
     def delete_subscription(subscription_id: str):
-        if not service.delete_subscription(subscription_id):
+        result = service.delete_subscription(subscription_id)
+        if result is None:
             return fail(404, "NOT_FOUND", "未找到该订阅")
-        return ok({"message": "已删除订阅", "id": subscription_id})
+        return ok(result)
 
     @app.post("/api/subscriptions/delete-by-name")
     def delete_subscription_by_name(body: DeleteByNameRequest):
-        if not service.delete_subscription_by_name(body.name):
+        result = service.delete_subscription_by_name(body.name)
+        if result is None:
             return fail(404, "NOT_FOUND", "未找到匹配的订阅记录")
-        return ok({"message": "已删除订阅", "name": body.name})
+        return ok(result)
 
     @app.post("/api/subscriptions/update")
     def update_subscription_by_selector(body: SubscriptionUpdateBySelectorRequest):
@@ -176,9 +178,10 @@ def create_app(config: AppConfig | None = None,
     def delete_subscription_by_selector(body: SubscriptionDeleteBySelectorRequest):
         if not body.id and not body.name:
             return fail(400, "INVALID_ARGUMENT", "必须提供 id 或 name")
-        if not service.delete_subscription_by_selector(subscription_id=body.id, name=body.name):
+        result = service.delete_subscription_by_selector(subscription_id=body.id, name=body.name)
+        if result is None:
             return fail(404, "NOT_FOUND", "未找到匹配的订阅记录")
-        return ok({"message": "已删除订阅", "id": body.id, "name": body.name})
+        return ok(result)
 
     @app.get("/api/reports/monthly")
     def monthly_report(month: Optional[str] = None, mode: str = "budget"):

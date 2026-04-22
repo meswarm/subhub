@@ -13,11 +13,11 @@
 ### Task 1: Lock simplified formatter output with tests
 
 **Files:**
+
 - Modify: `tests/test_display.py`
 - Modify: `src/subhub/display.py`
 - Test: `tests/test_display.py`
-
-- [ ] **Step 1: Write the failing test**
+- **Step 1: Write the failing test**
 
 ```python
 def test_format_reminder_table_is_concise():
@@ -42,12 +42,12 @@ def test_format_reminder_table_is_concise():
     assert "回复\"知道了\"可关闭本次提醒" not in text
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_display.py::test_format_reminder_table_is_concise -v`
 Expected: FAIL because the current formatter still uses emoji and footer helper text.
 
-- [ ] **Step 3: Write minimal implementation**
+- **Step 3: Write minimal implementation**
 
 ```python
 header = "## 订阅扣款提醒\n"
@@ -56,12 +56,12 @@ header += f"- 将在 {rd_short} 扣款：\n\n"
 return header + "\n".join(lines)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_display.py::test_format_reminder_table_is_concise -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- **Step 5: Commit**
 
 ```bash
 git add tests/test_display.py src/subhub/display.py
@@ -71,11 +71,11 @@ git commit -m "refactor: simplify reminder output for mobile"
 ### Task 2: Lock simplified report output with tests
 
 **Files:**
+
 - Modify: `tests/test_display.py`
 - Modify: `src/subhub/display.py`
 - Test: `tests/test_display.py`
-
-- [ ] **Step 1: Write the failing tests**
+- **Step 1: Write the failing tests**
 
 ```python
 def test_format_monthly_report_is_concise():
@@ -122,12 +122,12 @@ def test_format_actual_billing_report_is_concise():
     assert "这是本月实际发生的扣款统计" not in text
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_display.py::test_format_monthly_report_is_concise tests/test_display.py::test_format_actual_billing_report_is_concise -v`
 Expected: FAIL because the current reports still use emoji titles and footer helper text.
 
-- [ ] **Step 3: Write minimal implementation**
+- **Step 3: Write minimal implementation**
 
 ```python
 if not recurring:
@@ -145,12 +145,12 @@ header = f"## {month} 实际扣款报表\n\n"
 return header + "\n".join(lines)
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- **Step 4: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_display.py::test_format_monthly_report_is_concise tests/test_display.py::test_format_actual_billing_report_is_concise -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- **Step 5: Commit**
 
 ```bash
 git add tests/test_display.py src/subhub/display.py
@@ -160,12 +160,12 @@ git commit -m "refactor: simplify report markdown output"
 ### Task 3: Tighten agent and skill response rules
 
 **Files:**
+
 - Modify: `link/agents/subhub.yaml`
 - Modify: `link/agents/skills/manage-subscriptions/SKILL.md`
 - Modify: `README.md`
 - Modify: `README_EN.md`
-
-- [ ] **Step 1: Update the agent prompt**
+- **Step 1: Update the agent prompt**
 
 ```yaml
   9. 回复使用中文，简洁明了，先给结果，不添加寒暄、问候或主动延伸建议。
@@ -174,7 +174,7 @@ git commit -m "refactor: simplify report markdown output"
   12. 涉及列表、报表、查询结果时，优先输出精简后的 markdown 或结构化结果，避免重复解释。
 ```
 
-- [ ] **Step 2: Update the skill response rules**
+- **Step 2: Update the skill response rules**
 
 ```markdown
 - Always reply in Chinese.
@@ -184,20 +184,21 @@ git commit -m "refactor: simplify report markdown output"
 - Avoid emoji unless the user explicitly wants them.
 ```
 
-- [ ] **Step 3: Update README files**
+- **Step 3: Update README files**
 
 ```markdown
 - Agent output is optimized for mobile reading: concise, result-first, and limited in markdown styling.
 ```
 
-- [ ] **Step 4: Run focused checks**
+- **Step 4: Run focused checks**
 
 Run: `uv run pytest tests/test_display.py -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- **Step 5: Commit**
 
 ```bash
 git add link/agents/subhub.yaml link/agents/skills/manage-subscriptions/SKILL.md README.md README_EN.md
 git commit -m "docs: tighten agent response style rules"
 ```
+

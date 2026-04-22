@@ -139,6 +139,20 @@ ltool start link/agents/subhub.yaml
 
 Link 启动前，请先确认 SubHub API 已运行，并且 [link/agents/subhub.yaml](link/agents/subhub.yaml) 中的 `endpoint` 与 [config.toml](config.toml) 里的 `[server]` 配置一致。
 
+### 测试主动通知
+
+Link 启动后，可直接向 webhook 端点发送一条模拟“即将到期提醒”，验证用户侧是否能收到主动通知：
+
+```bash
+curl -X POST "http://127.0.0.1:59001/alert" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "## 订阅扣款提醒\n- 日期：2026-04-20\n- 将在 04-23 扣款：\n\n| 服务名称 | 金额 | 支付渠道 | 登录账号 |\n|----------|------|----------|----------|\n| GitHub Copilot Pro | $10.00 | Visa | me@example.com |"
+  }'
+```
+
+这条命令用于模拟 SubHub 主动推送“哪些订阅快到期了”的通知效果。
+
 ## 贡献指南
 
 1. Fork 本仓库

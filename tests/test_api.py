@@ -66,6 +66,9 @@ def test_create_and_list_subscription(tmp_path):
     ]:
         response = client.post("/api/subscriptions", json=item)
         assert response.status_code == 201
+        data = response.json()["data"]
+        assert "subscriptions" in data
+        assert data["item"]["name"] in data["subscriptions"]["markdown"]
 
     list_response = client.get("/api/subscriptions")
     assert list_response.status_code == 200
@@ -91,9 +94,11 @@ def test_create_permanent_subscription_with_literal_text(tmp_path):
         },
     )
     assert response.status_code == 201
-    item = response.json()["data"]["item"]
+    data = response.json()["data"]
+    item = data["item"]
     assert item["billing_cycle"] == "permanent"
     assert item["next_billing_date"] is None
+    assert item["name"] in data["subscriptions"]["markdown"]
 
 
 def test_update_and_delete_subscription(tmp_path):
@@ -118,7 +123,10 @@ def test_update_and_delete_subscription(tmp_path):
 
     delete_response = client.delete(f"/api/subscriptions/{sub.id}")
     assert delete_response.status_code == 200
-    assert delete_response.json()["data"]["id"] == sub.id
+    data = delete_response.json()["data"]
+    assert data["id"] == sub.id
+    assert data["subscriptions"]["items"] == []
+    assert "暂无订阅记录" in data["subscriptions"]["markdown"]
 
 
 def test_selector_based_update_and_delete(tmp_path):
@@ -146,7 +154,10 @@ def test_selector_based_update_and_delete(tmp_path):
         json={"name": "Notion"},
     )
     assert delete_response.status_code == 200
-    assert delete_response.json()["data"]["name"] == "Notion"
+    data = delete_response.json()["data"]
+    assert data["name"] == "Notion"
+    assert data["subscriptions"]["items"] == []
+    assert "暂无订阅记录" in data["subscriptions"]["markdown"]
 
 
 def test_selector_based_update_can_change_name(tmp_path):

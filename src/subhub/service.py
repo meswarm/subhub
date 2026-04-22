@@ -35,6 +35,9 @@ class SubHubService:
     def serialize_subscription(self, sub: Subscription) -> dict:
         return asdict(sub)
 
+    def _subscription_snapshot(self) -> dict:
+        return self.get_context_subscriptions()
+
     def list_subscriptions(self, name: Optional[str] = None,
                            billing_cycle: Optional[str] = None) -> dict:
         items = sort_subscriptions_by_next_billing_date(
@@ -69,6 +72,7 @@ class SubHubService:
         return {
             "message": "已添加订阅",
             "item": self.serialize_subscription(sub),
+            "subscriptions": self._subscription_snapshot(),
         }
 
     def update_subscription(self, subscription_id: str, payload: dict) -> Optional[dict]:
@@ -112,15 +116,43 @@ class SubHubService:
             "item": self.serialize_subscription(updated),
         }
 
-    def delete_subscription(self, subscription_id: str) -> bool:
-        return self.store.remove(id=subscription_id)
+    def delete_subscription(self, subscription_id: str) -> Optional[dict]:
+        deleted_item = self.get_subscription(subscription_id)
+        if deleted_item is None:
+            return None
+        if not self.store.remove(id=subscription_id):
+            return None
+        return {
+            "message": "已删除订阅",
+            "id": subscription_id,
+            "item": deleted_item,
+            "subscriptions": self._subscription_snapshot(),
+        }
 
-    def delete_subscription_by_name(self, name: str) -> bool:
-        return self.store.remove(name=name)
+    def delete_subscription_by_name(self, name: str) -> Optional[dict]:
+        matches = [
+            self.serialize_subscription(sub)
+            for sub in self.store.list_all()
+            if sub.name == name
+        ]
+        if not matches:
+            return None
+        if not self.store.remove(name=name):
+            return None
+        return {
+            "message": "已删除订阅",
+            "name": name,
+            "items": matches,
+            "subscriptions": self._subscription_snapshot(),
+        }
 
     def delete_subscription_by_selector(self, *, subscription_id: Optional[str] = None,
-                                        name: Optional[str] = None) -> bool:
-        return self.store.remove(id=subscription_id, name=name)
+                                        name: Optional[str] = None) -> Optional[dict]:
+        if subscription_id:
+            return self.delete_subscription(subscription_id)
+        if name:
+            return self.delete_subscription_by_name(name)
+        return None
 
     def dismiss_reminder(self, target: str, today: Optional[date] = None) -> dict:
         today = today or date.today()

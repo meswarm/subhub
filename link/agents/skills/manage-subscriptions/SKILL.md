@@ -18,6 +18,7 @@ Read references/domain-rules.md when the user uses relative dates, omits `billin
 
 ## Defaults
 
+- For create, once a candidate `name` is known, check existing subscriptions with `list_subscriptions` before creating.
 - Use `list_subscriptions` first for update or delete unless a unique `id` is already known.
 - Use `generate_monthly_report` with `mode=actual` for “本月花了多少/本月实际扣了多少”.
 - Use `generate_monthly_report` with `mode=budget` for “月报/预算/每月总费用”.
@@ -49,8 +50,11 @@ Do not call `create_subscription` until these are known:
 ### Create
 
 1. Collect missing fields
-2. Apply the defaults in references/domain-rules.md when inference is allowed
-3. Call `create_subscription`
+2. Once `name` is known, query with `list_subscriptions`
+3. If existing items share the same name, especially with different `account`, `payment_channel`, `amount`, or `billing_cycle`, explain the conflict and ask whether this should be added as a separate subscription
+4. Summarize the final candidate subscription and ask the user to confirm it is correct
+5. Only after explicit confirmation, call `create_subscription`
+6. Call `list_subscriptions` again and show the updated list
 
 ### Update
 
@@ -61,8 +65,10 @@ Do not call `create_subscription` until these are known:
 ### Delete
 
 1. Query with `list_subscriptions`
-2. If multiple matches exist, ask the user to confirm one target
-3. Call `delete_subscription`, preferring `id` over `name`
+2. Show the exact target subscription to the user
+3. Ask for explicit confirmation even if the target is unique
+4. Only after explicit confirmation, call `delete_subscription`, preferring `id` over `name`
+5. Call `list_subscriptions` again and show the updated list
 
 ### Reminder confirmation
 
@@ -80,3 +86,6 @@ Do not call `create_subscription` until these are known:
 - Do not invent subscriptions, dates, amounts, or currencies.
 - If key information is missing, ask a focused follow-up instead of acting.
 - If a destructive action is ambiguous, query first and confirm.
+- For delete, never execute immediately after lookup; always wait for a clear user confirmation.
+- For create, never execute immediately after field collection; always show a summary and wait for a clear user confirmation.
+- After successful create or delete, always show the refreshed subscription list.

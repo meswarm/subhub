@@ -137,6 +137,20 @@ ltool start link/agents/subhub.yaml
 
 Before starting Link, make sure the SubHub API is already running and the `endpoint` values in [link/agents/subhub.yaml](link/agents/subhub.yaml) match the `[server]` settings in [config.toml](config.toml).
 
+### Test proactive notifications
+
+After Link is running, you can send a simulated “upcoming charge reminder” to the webhook endpoint and verify that the user receives the proactive notification:
+
+```bash
+curl -X POST "http://127.0.0.1:59001/alert" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "## 订阅扣款提醒\n- 日期：2026-04-20\n- 将在 04-23 扣款：\n\n| 服务名称 | 金额 | 支付渠道 | 登录账号 |\n|----------|------|----------|----------|\n| GitHub Copilot Pro | $10.00 | Visa | me@example.com |"
+  }'
+```
+
+This command simulates the SubHub proactive reminder for “which subscriptions are about to renew”.
+
 ## Contributing
 
 1. Fork the repository
