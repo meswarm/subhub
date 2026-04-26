@@ -70,9 +70,10 @@ Data storage settings:
 ```env
 SUBHUB_DB_DIR=db
 SUBHUB_DB_FILENAME=subscriptions.json
+SUBHUB_DISMISSED_FILENAME=dismissed.json
 ```
 
-By default, subscription data is stored at `./db/subscriptions.json`, and reminder dismissal state is stored beside it at `./db/dismissed.json`.
+By default, subscription data is stored at `./db/subscriptions.json`, and reminder dismissal state is stored beside it at `./db/dismissed.json`. `SUBHUB_DISMISSED_FILENAME` is resolved relative to `SUBHUB_DB_DIR` unless it is configured as an absolute path.
 
 Reminder settings:
 
@@ -214,6 +215,7 @@ If there are reminder items:
 - With `SUBHUB_REMINDER_USE_LLM=true`, ask the LLM to produce a concise notification, then send that text to all configured Matrix rooms.
 
 Dismissed reminders remain persisted in `dismissed.json`.
+The dismissed reminder path is configured by `SUBHUB_DISMISSED_FILENAME` and defaults to `./db/dismissed.json`.
 
 The reminder loop should log each tick at debug level and log sent reminders at info level. Failures should be logged without stopping the bot process.
 
