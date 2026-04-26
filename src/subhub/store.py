@@ -27,11 +27,15 @@ class Subscription:
 class SubscriptionStore:
     """基于 JSON 文件的订阅数据管理。线程安全。"""
 
-    def __init__(self, filepath: Path):
+    def __init__(self, filepath: Path, dismissed_filepath: Path | None = None):
         self._filepath = Path(filepath)
         self._subscriptions: list[Subscription] = []
         self._lock = threading.RLock()
-        self._dismissed_filepath = self._filepath.parent / "dismissed.json"
+        self._dismissed_filepath = (
+            Path(dismissed_filepath)
+            if dismissed_filepath is not None
+            else self._filepath.parent / "dismissed.json"
+        )
         self._load()
 
     def _load(self):

@@ -198,6 +198,17 @@ def test_dismissed_persists_across_instances(tmp_path):
     assert sub.id in dismissed
 
 
+def test_dismissed_filepath_can_be_configured(tmp_path):
+    dismissed_path = tmp_path / "state" / "ignored.json"
+    store = SubscriptionStore(tmp_path / "subs.json", dismissed_filepath=dismissed_path)
+    sub = store.add(name="测试", account="a", payment_channel="b",
+                    amount=10.0, currency="CNY", billing_cycle="monthly",
+                    next_billing_date="2026-05-01", notes="")
+    store.dismiss_reminder(sub.id, date(2026, 4, 8))
+
+    assert dismissed_path.exists()
+
+
 # --- get_billing_in_month tests ---
 
 def test_get_billing_in_month(store):
