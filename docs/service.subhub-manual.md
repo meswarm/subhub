@@ -1,6 +1,6 @@
 # service.subhub 命令说明
 
-> 系统类型：HTTP API 服务 + 主动 webhook 提醒
+> 系统类型：Matrix 订阅管理机器人
 
 ---
 
@@ -12,35 +12,51 @@
 make run
 ```
 
-等价命令：`uv run subhub`。若已配置 [webhook]，同一进程会同时启用主动提醒推送。
+等价命令：`uv run subhub`。启动前请先复制 `.env.example` 为 `.env`，并填写 Matrix、LLM 和 R2 配置。
 
-监听地址默认读取 `config.toml` 中的 `[server]` 配置，例如：
+## 环境变量
 
-```toml
-[server]
-host = "127.0.0.1"
-port = 58000
-```
+- `MATRIX_HOMESERVER`：Matrix homeserver 地址
+- `MATRIX_USER`：机器人账号
+- `MATRIX_PASSWORD`：机器人密码
+- `MATRIX_ROOMS`：监听的房间 ID，逗号分隔
+- `SUBHUB_LLM_BASE_URL`、`SUBHUB_LLM_API_KEY`、`SUBHUB_LLM_MODEL`、`SUBHUB_SYSTEM_PROMPT`：LLM 配置
+- `SUBHUB_DB_DIR`、`SUBHUB_DB_FILENAME`、`SUBHUB_DISMISSED_FILENAME`：本地 JSON 存储路径
+- `SUBHUB_DOWNLOAD_DIR`：附件下载缓存目录
+- `R2_ENDPOINT`、`R2_ACCESS_KEY`、`R2_SECRET_KEY`、`R2_BUCKET`、`R2_PUBLIC_URL`：R2 相关配置
 
-也可通过 `--host` / `--port` 临时覆盖，例如：`make run ARGS="--host 0.0.0.0 --port 8080"`。
+## 功能范围
 
-首次安装依赖可在仓库根目录执行 `make sync`（等价于 `uv sync`）。
+管理个人订阅服务，支持以下操作：
 
-常用接口示例：
+- 新增订阅
+- 删除订阅
+- 修改订阅
+- 查询订阅
+- 生成月报
+- 处理提醒
 
-```bash
-curl http://127.0.0.1:58000/api/subscriptions
+支持的计费周期：月付、季付、半年付、年付、周付、日付、永久、自定义
 
-curl -X POST http://127.0.0.1:58000/api/subscriptions \
-	-H "Content-Type: application/json" \
-	-d '{"name":"Netflix","account":"test@gmail.com","payment_channel":"visa","amount":15.99,"currency":"USD","billing_cycle":"monthly","next_billing_date":"2026-05-01","notes":""}'
+支持的货币：CNY、USD、EUR、GBP、JPY
 
-curl -X POST http://127.0.0.1:58000/api/subscriptions/delete \
-	-H "Content-Type: application/json" \
-	-d '{"name":"Netflix"}'
+## 输出格式
 
-curl "http://127.0.0.1:58000/api/reports/monthly?month=2026-04&mode=budget"
-```
+- 机器人在 Matrix 中以文本消息回复
+- 成功与失败结果会尽量保持简洁
+- 月报和列表会优先使用 Markdown 表格
+
+## 附件规则
+
+- 机器人只接收 Matrix 文本消息
+- 图片、视频、音频和文件通过 `r2://` Markdown 链接传递
+- 默认只下载图片；视频、音频和文件不下载也不解析
+
+## 默认路径
+
+- 数据文件：`./db/subscriptions.json`
+- 已忽略提醒：`./db/dismissed.json`
+- 下载缓存：`./downloads`
 
 ---
 
@@ -49,48 +65,3 @@ curl "http://127.0.0.1:58000/api/reports/monthly?month=2026-04&mode=budget"
 ```
 /home/txl/Code/meswarm/subhub
 ```
-
----
-
-## 功能范围
-
-管理个人订阅服务，支持以下操作：
-
-- **新增订阅**：记录服务名称、账号、支付渠道、金额、货币、计费周期、下次扣款日
-- **删除订阅**：按名称或 ID 删除
-- **修改订阅**：更新任意字段（金额、周期、扣款日等）
-- **查询订阅**：列出全部，或按名称模糊搜索、按计费周期筛选
-- **生成月报**：月度订阅预算报表（折算月费）或实际扣款报表
-- **处理提醒**：用户确认已收到扣款提醒时关闭当天提醒
-
-支持的计费周期：月付、季付、半年付、年付、周付、日付、永久、自定义
-
-支持的货币：CNY、USD、EUR、GBP、JPY
-
----
-
-## 输出格式
-
-- 接口返回 JSON，编码 UTF-8
-- 成功响应格式：`{"ok": true, "data": ...}`
-- 失败响应格式：`{"ok": false, "error": {"code": "...", "message": "..."}}`
-
----
-
-## 主动事件
-
-本系统有主动提醒需求。启动 API 服务后，如已配置 [webhook]，检测到即将扣款的订阅时会直接推送文本到 Link webhook：
-
-```
-POST http://127.0.0.1:9001/alert
-{"message": "<提醒内容>"}
-```
-
-提醒规则：提前 3 天，每 1 小时检查一次（可配置）。
-
----
-
-## 特殊注意事项
-
-- 默认监听地址为 `127.0.0.1:8000`
-- 数据存储在本地 JSON 文件，路径由 `config.toml` 中 `[data]` 决定

@@ -1,50 +1,68 @@
-"""SubHub 主入口。默认启动 HTTP API，并在同一进程中处理 webhook 提醒。"""
+"""SubHub Matrix bot entry point."""
+
+from __future__ import annotations
 
 import argparse
+import asyncio
+import logging
+import signal
 import sys
 
+from subhub.bot import SubHubBot
 from subhub.config import load_config
-from subhub.store import SubscriptionStore
+from subhub.matrix_client import MatrixTextClient
 
 
-def _run_api_server(config, store, host: str, port: int):
-    """启动 HTTP API 服务。"""
-    import uvicorn
-
-    from subhub.api import create_app
-
-    app = create_app(config=config, store=store)
-    uvicorn.run(app, host=host, port=port)
+def _configure_logging(level: str) -> None:
+    logging.basicConfig(
+        level=getattr(logging, level, logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
 
 
-def main():
-    parser = argparse.ArgumentParser(description="SubHub API 服务")
-    parser.add_argument("--config", "-c", default=None,
-                        help="配置文件路径（默认自动查找）")
-    parser.add_argument("--api", action="store_true",
-                        help="兼容参数：显式启动 HTTP API 服务")
-    parser.add_argument("--host", default=None,
-                        help="API 服务监听地址（默认读取 config.toml 的 [server].host）")
-    parser.add_argument("--port", type=int, default=None,
-                        help="API 服务端口（默认读取 config.toml 的 [server].port）")
+async def _amain(env_path: str | None) -> None:
+    config = load_config(env_path=env_path, require_bot_runtime=True)
+    _configure_logging(getattr(config, "log_level", "INFO"))
+    logging.info(
+        "Starting SubHub bot: rooms=%s db=%s downloads=%s reminders=%s",
+        config.matrix.rooms,
+        config.data.filepath,
+        config.download.root,
+        "enabled" if getattr(config.reminder, "enabled", True) else "disabled",
+    )
+    matrix = MatrixTextClient(
+        homeserver=config.matrix.homeserver,
+        user=config.matrix.user,
+        password=config.matrix.password,
+        rooms=config.matrix.rooms,
+    )
+    bot = SubHubBot(config, matrix)
+    loop = asyncio.get_running_loop()
+    stop_event = asyncio.Event()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, stop_event.set)
+        except NotImplementedError:
+            pass
+    task = asyncio.create_task(bot.start())
+    await stop_event.wait()
+    await bot.stop()
+    task.cancel()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="SubHub Matrix bot")
+    parser.add_argument("--env", default=".env", help="Path to .env file")
     args = parser.parse_args()
 
     try:
-        config = load_config(config_path=args.config)
-    except FileNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        asyncio.run(_amain(args.env))
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
-
-    store = SubscriptionStore(
-        config.data.filepath,
-        dismissed_filepath=config.data.dismissed_filepath,
-    )
-    host = args.host or config.server.host
-    port = args.port or config.server.port
-    _run_api_server(config, store, host, port)
 
 
 if __name__ == "__main__":

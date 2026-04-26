@@ -1,26 +1,26 @@
 ![Version](https://img.shields.io/github/v/release/meswarm/subhub?label=Version)
 ![License](https://img.shields.io/github/license/meswarm/subhub?label=License)
 
-[![语言-中文](https://img.shields.io/badge/语言-中文-red)](README.md)
 [![Language-English](https://img.shields.io/badge/Language-English-blue)](README_EN.md)
+[![语言-中文](https://img.shields.io/badge/语言-中文-red)](README.md)
 
 # SubHub
 
-> An API-first personal subscription manager for Link and other agent middleware
+> A Matrix-native personal subscription management bot
 
-SubHub is a FastAPI-based personal subscription management service designed for Link and similar agent middleware. It exposes HTTP APIs, proactive webhook reminders, monthly reports, and local JSON storage to manage monthly, quarterly, semiannual, yearly, weekly, daily, custom, and perpetual subscriptions in one place. The default reply style is optimized for mobile reading: result-first, concise, and limited in unnecessary Markdown decoration.
+SubHub manages subscriptions, reminders, and monthly reports through Matrix text messages. It uses local JSON storage, embedded LLM tool calls, and optional R2 attachment handling. It no longer exposes an HTTP API, webhook runtime, or `config.toml`.
 
 ## Tech Stack
 
 | Category | Technology |
-|----------|-----------|
+|---|---|
 | Language | Python 3.12+ |
-| Framework | FastAPI + Uvicorn |
+| Runtime | Matrix bot + OpenAI-compatible LLM |
 | Package Manager | uv + hatchling |
 | Task runner | Make |
 | Data Storage | JSON file |
-| Key Libraries | Pydantic, python-dotenv |
-| Testing | pytest |
+| Key Libraries | python-dotenv, matrix-nio, openai, aiohttp, aiofiles, aioboto3 |
+| Testing | pytest, pytest-asyncio |
 
 ## Getting Started
 
@@ -28,7 +28,7 @@ SubHub is a FastAPI-based personal subscription management service designed for 
 
 - Python >= 3.12
 - [uv](https://docs.astral.sh/uv/) package manager
-- GNU Make (usually preinstalled; used to wrap common commands via `Makefile`)
+- GNU Make
 
 ### Installation
 
@@ -38,27 +38,30 @@ cd subhub
 make sync
 ```
 
-`make sync` runs `uv sync`, so you do not need to create or activate a virtual environment by hand.
-
 ### Configuration
 
-Edit `config.toml` to customize data path, API listen address, reminder parameters, report currency, and webhook URL.
+Copy `.env.example` to `.env` and fill in at least:
 
-Example:
+- `MATRIX_HOMESERVER`
+- `MATRIX_USER`
+- `MATRIX_PASSWORD`
+- `MATRIX_ROOMS`
+- `SUBHUB_LLM_BASE_URL`
+- `SUBHUB_LLM_API_KEY`
+- `SUBHUB_LLM_MODEL`
+- `SUBHUB_SYSTEM_PROMPT`
 
-```toml
-[server]
-host = "127.0.0.1"
-port = 58000
-```
+Default data files are `./db/subscriptions.json` and `./db/dismissed.json`. You can override them with `SUBHUB_DB_DIR`, `SUBHUB_DB_FILENAME`, and `SUBHUB_DISMISSED_FILENAME`.
 
-### Running locally
+SubHub only accepts Matrix text messages. Images, videos, audio, and files are carried as `r2://` Markdown links in text. By default, only images are downloaded; videos, audio, and regular files are not downloaded or parsed.
+
+### Run locally
 
 ```bash
 make run
 ```
 
-By default, SubHub reads `host` and `port` from `[server]` in `config.toml`. To override: `make run ARGS="--host 0.0.0.0 --port 8080"`.
+SubHub reads `.env`, signs into Matrix, and listens to the rooms listed in `MATRIX_ROOMS`.
 
 ### Run tests
 
@@ -66,98 +69,23 @@ By default, SubHub reads `host` and `port` from `[server]` in `config.toml`. To 
 make test
 ```
 
-### Equivalent uv commands
-
-Without Make, or for scripts, use the same steps directly: `uv sync`, `uv run subhub`, and `uv run pytest` (same as the `make` targets above).
-
-## Project Structure
+### Project layout
 
 ```
 subhub/
-├── LICENSE                 # MIT license
-├── Makefile                # make sync / run / test (wraps uv)
-├── config.toml             # Application config
-├── docs/                   # Design docs and manuals
-├── link/                   # Link agent config and skills
-├── pyproject.toml          # Project metadata and dependencies
+├── Makefile
+├── README.md
+├── README_EN.md
+├── docs/
+├── pyproject.toml
+├── skills/
 ├── src/subhub/
-│   ├── api.py              # FastAPI HTTP API
-│   ├── config.py           # Config loader
-│   ├── display.py          # Markdown formatting output
-│   ├── reminder.py         # Background reminder thread
-│   ├── service.py          # Business service layer
-│   ├── store.py            # JSON data storage layer
-│   ├── webhook.py          # Link webhook client
-│   └── main.py             # Entry point
-└── tests/                  # Unit tests
+└── tests/
 ```
 
-## Usage
+## Typical use
 
-### Start the API service
-
-```bash
-make run
-```
-
-### List subscriptions
-
-```bash
-curl http://127.0.0.1:58000/api/subscriptions
-```
-
-### Create a subscription
-
-```bash
-curl -X POST http://127.0.0.1:58000/api/subscriptions \
-	-H "Content-Type: application/json" \
-	-d '{
-		"name": "YouTube Premium",
-		"account": "me@example.com",
-		"payment_channel": "Visa",
-		"amount": 28,
-		"currency": "CNY",
-		"billing_cycle": "monthly",
-		"next_billing_date": "2026-05-01",
-		"notes": "家庭组"
-	}'
-```
-
-### Generate a monthly report
-
-```bash
-curl "http://127.0.0.1:58000/api/reports/monthly?month=2026-04&mode=budget"
-```
-
-### Start Link
-
-```bash
-ltool start link/agents/subhub.yaml
-```
-
-Before starting Link, make sure the SubHub API is already running and the `endpoint` values in [link/agents/subhub.yaml](link/agents/subhub.yaml) match the `[server]` settings in [config.toml](config.toml).
-
-### Test proactive notifications
-
-After Link is running, you can send a simulated “upcoming charge reminder” to the webhook endpoint and verify that the user receives the proactive notification:
-
-```bash
-curl -X POST "http://127.0.0.1:59001/alert" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "## 订阅扣款提醒\n- 日期：2026-04-20\n- 将在 04-23 扣款：\n\n| 服务名称 | 金额 | 支付渠道 | 登录账号 |\n|----------|------|----------|----------|\n| GitHub Copilot Pro | $10.00 | Visa | me@example.com |"
-  }'
-```
-
-This command simulates the SubHub proactive reminder for “which subscriptions are about to renew”.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/your-feature`)
-3. Commit your changes (`git commit -m 'feat: add your feature'`)
-4. Push to the branch (`git push origin feat/your-feature`)
-5. Open a Pull Request
+Subscription management, reports, and reminder acknowledgements are handled naturally in Matrix rooms. The bot routes requests through local tools, produces reports, and formats reminder messages when needed.
 
 ## License
 

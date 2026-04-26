@@ -5,9 +5,9 @@ description: Queries, creates, updates, deletes, reports on, and dismisses remin
 
 # Manage Subscriptions
 
-Use this skill for subscription-management requests handled through the Link tools in ../../subhub.yaml.
+Use this skill for subscription-management requests handled by the embedded SubHub bot tools.
 
-Read references/domain-rules.md when the user uses relative dates, omits `billing_cycle`, asks to infer `next_billing_date`, or the target subscription is ambiguous.
+Read `references/domain-rules.md` when the user uses relative dates, omits `billing_cycle`, asks to infer `next_billing_date`, or the target subscription is ambiguous.
 
 ## Task Progress
 
@@ -43,9 +43,9 @@ Do not call `create_subscription` until these are known:
 
 ### Query
 
-- General lookup → `list_subscriptions`
-- Upcoming charge check → `get_today_reminders`
-- Monthly spending or budget → `generate_monthly_report`
+- General lookup -> `list_subscriptions`
+- Upcoming charge check -> `get_today_reminders`
+- Monthly spending or budget -> `generate_monthly_report`
 
 ### Create
 
@@ -72,8 +72,8 @@ Do not call `create_subscription` until these are known:
 
 ### Reminder confirmation
 
-- One subscription confirmed → `dismiss_reminder` with that `id` or name
-- User confirms all reminders → `dismiss_reminder` with `target=all`
+- One subscription confirmed -> `dismiss_reminder` with that `id` or name
+- User confirms all reminders -> `dismiss_reminder` with `target=all`
 
 ## Response rules
 

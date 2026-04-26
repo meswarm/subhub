@@ -4,39 +4,41 @@ Read this file when the user uses relative dates, omits `billing_cycle`, asks to
 
 ## Relative date defaults
 
-- “今天”“刚才” → current date
-- “昨天” → current date minus 1 day
-- “X天前” → current date minus X days
+- “今天”“刚才” -> current date
+- “昨天” -> current date minus 1 day
+- “X天前” -> current date minus X days
 - If the user gives an explicit date, use it directly
 
 ## `next_billing_date` defaults
 
 Only infer `next_billing_date` when the user did not provide it explicitly.
 
-- `monthly` → start date + 1 natural month
-- `quarterly` → start date + 3 natural months
-- `semiannual` → start date + 6 natural months
-- `yearly` → start date + 1 year
-- `weekly` → start date + 7 days
-- `daily` → start date + 1 day
-- `permanent` → `永久`
-- `custom` → ask a follow-up; do not infer
+- `monthly` -> start date + 1 natural month
+- `quarterly` -> start date + 3 natural months
+- `semiannual` -> start date + 6 natural months
+- `yearly` -> start date + 1 year
+- `weekly` -> start date + 7 days
+- `daily` -> start date + 1 day
+- `permanent` -> `永久`
+- `custom` -> ask a follow-up; do not infer
 
 ## Missing-field rules
 
-- Missing `currency` → ask
-- Missing `billing_cycle` → ask
-- Missing `account` or `payment_channel` → ask, and prefer values seen in context when offering choices
+- Missing `currency` -> ask
+- Missing `billing_cycle` -> ask
+- Missing `account` or `payment_channel` -> ask, and prefer values seen in context when offering choices
 - `notes` may be empty
 
 ## Report mode selection
 
 Use `mode=actual` for:
+
 - 本月花了多少
 - 本月实际扣了多少
 - 本月实际支出
 
 Use `mode=budget` for:
+
 - 月报
 - 预算
 - 每月总费用
