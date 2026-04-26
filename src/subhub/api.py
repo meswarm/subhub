@@ -59,7 +59,10 @@ def create_app(config: AppConfig | None = None,
     if config is None:
         config = load_config()
     if store is None:
-        store = SubscriptionStore(config.data.filepath)
+        store = SubscriptionStore(
+            config.data.filepath,
+            dismissed_filepath=config.data.dismissed_filepath,
+        )
 
     service = SubHubService(
         store=store,

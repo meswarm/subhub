@@ -231,3 +231,42 @@ def test_dismiss_reminder_and_today_reminders(tmp_path):
     reminders_response_2 = client.get("/api/reminders/today")
     assert reminders_response_2.status_code == 200
     assert reminders_response_2.json()["data"]["items"] == []
+
+
+def test_default_store_uses_configured_dismissed_path(tmp_path):
+    dismissed_path = tmp_path / "state" / "reminders-dismissed.json"
+    data_dir = tmp_path / "data"
+    config = AppConfig(
+        data=DataConfig(
+            path=str(data_dir),
+            filename="subs.json",
+            dismissed_filename=str(dismissed_path),
+        ),
+        server=ServerConfig(host="127.0.0.1", port=58000),
+        reminder=ReminderConfig(advance_days=3, check_interval_hours=1),
+        report=ReportConfig(base_currency="CNY"),
+        webhook=WebhookConfig(),
+    )
+    client = TestClient(create_app(config=config))
+
+    create_response = client.post(
+        "/api/subscriptions",
+        json={
+            "name": "提醒路径测试",
+            "account": "acc",
+            "payment_channel": "Visa",
+            "amount": 10.0,
+            "currency": "CNY",
+            "billing_cycle": "monthly",
+            "next_billing_date": (date.today() + timedelta(days=3)).isoformat(),
+            "notes": "",
+        },
+    )
+    assert create_response.status_code == 201
+    sub_id = create_response.json()["data"]["item"]["id"]
+
+    dismiss_response = client.post("/api/reminders/dismiss", json={"target": sub_id})
+
+    assert dismiss_response.status_code == 200
+    assert dismissed_path.exists()
+    assert not (data_dir / "dismissed.json").exists()

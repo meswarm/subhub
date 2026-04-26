@@ -38,7 +38,10 @@ def main():
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    store = SubscriptionStore(config.data.filepath)
+    store = SubscriptionStore(
+        config.data.filepath,
+        dismissed_filepath=config.data.dismissed_filepath,
+    )
     host = args.host or config.server.host
     port = args.port or config.server.port
     _run_api_server(config, store, host, port)
