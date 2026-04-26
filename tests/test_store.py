@@ -207,6 +207,10 @@ def test_dismissed_filepath_can_be_configured(tmp_path):
     store.dismiss_reminder(sub.id, date(2026, 4, 8))
 
     assert dismissed_path.exists()
+    store2 = SubscriptionStore(tmp_path / "subs.json", dismissed_filepath=dismissed_path)
+    dismissed = store2.get_dismissed_reminders(date(2026, 4, 8))
+    assert sub.id in dismissed
+    assert not (tmp_path / "dismissed.json").exists()
 
 
 # --- get_billing_in_month tests ---

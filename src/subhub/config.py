@@ -133,9 +133,16 @@ def find_config(name: str = "config.toml") -> Path | None:
 
 def _required_env(name: str) -> str:
     value = os.environ.get(name)
-    if value is None or value == "":
+    if value is None or value.strip() == "":
         raise ValueError(f"Missing required environment variable: {name}")
-    return value
+    return value.strip()
+
+
+def _matrix_rooms() -> list[str]:
+    rooms = [room.strip() for room in _required_env("MATRIX_ROOMS").split(",") if room.strip()]
+    if not rooms:
+        raise ValueError("Missing required environment variable: MATRIX_ROOMS")
+    return rooms
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -189,7 +196,10 @@ def load_config(config_path: str | None = None,
             use_llm=_env_bool("SUBHUB_REMINDER_USE_LLM", False),
         ),
         report=ReportConfig(
-            base_currency=os.environ.get("SUBHUB_BASE_CURRENCY", "CNY"),
+            base_currency=os.environ.get(
+                "SUBHUB_REPORT_BASE_CURRENCY",
+                os.environ.get("SUBHUB_BASE_CURRENCY", "CNY"),
+            ),
         ),
         webhook=WebhookConfig(
             url=os.environ.get("SUBHUB_WEBHOOK_URL", ""),
@@ -200,11 +210,7 @@ def load_config(config_path: str | None = None,
             homeserver=_required_env("MATRIX_HOMESERVER"),
             user=_required_env("MATRIX_USER"),
             password=_required_env("MATRIX_PASSWORD"),
-            rooms=[
-                room.strip()
-                for room in _required_env("MATRIX_ROOMS").split(",")
-                if room.strip()
-            ],
+            rooms=_matrix_rooms(),
         ),
         llm=LLMConfig(
             base_url=_required_env("SUBHUB_LLM_BASE_URL"),
