@@ -191,7 +191,10 @@ git commit -m "chore: add matrix bot runtime dependencies"
 **Files:**
 - Modify: `src/subhub/config.py`
 - Modify: `src/subhub/store.py`
+- Modify: `src/subhub/api.py`
+- Modify: `src/subhub/main.py`
 - Modify: `tests/test_store.py`
+- Modify: `tests/test_api.py`
 - Create: `tests/test_config.py`
 
 - [ ] **Step 1: Write config tests**
@@ -255,9 +258,9 @@ uv run pytest tests/test_config.py -v
 
 Expected: FAIL because `config.py` still loads TOML and old dataclasses.
 
-- [ ] **Step 3: Rewrite `src/subhub/config.py`**
+- [ ] **Step 3: Rewrite `src/subhub/config.py` with legacy API compatibility**
 
-Replace `src/subhub/config.py` with `.env` dataclasses and helpers. Include:
+Replace `src/subhub/config.py` with `.env` dataclasses and helpers, but keep `config.toml` parsing for the legacy API path until Task 8. `load_config(config_path=...)` must still support `config.toml` for `data`, `server`, `reminder`, `report`, and `webhook`. Matrix/LLM env vars are required only for bot runtime loading, not for the legacy API path. Include:
 
 ```python
 from __future__ import annotations
@@ -393,7 +396,11 @@ def _require(name: str) -> str:
     return value
 
 
-def load_config(env_path: str | Path | None = ".env") -> AppConfig:
+def load_config(
+    config_path: str | Path | None = None,
+    env_path: str | Path | None = ".env",
+    require_bot_runtime: bool = False,
+) -> AppConfig:
     if env_path:
         env_file = Path(env_path)
         if env_file.exists():
@@ -407,23 +414,12 @@ def load_config(env_path: str | Path | None = ".env") -> AppConfig:
     skills_raw = os.environ.get("SUBHUB_SKILLS_DIR", "").strip()
     skills_dir = _path_from_env(skills_raw, cwd) if skills_raw else None
 
+    # Legacy config.toml values should still be read here when present.
+    # Env values override or replace the old config values.
+    # Matrix/LLM values are required only when require_bot_runtime=True.
     return AppConfig(
-        matrix=MatrixConfig(
-            homeserver=_require("MATRIX_HOMESERVER"),
-            user=_require("MATRIX_USER"),
-            password=_require("MATRIX_PASSWORD"),
-            rooms=_split_csv(_require("MATRIX_ROOMS")),
-        ),
-        llm=LLMConfig(
-            base_url=_require("SUBHUB_LLM_BASE_URL"),
-            api_key=_require("SUBHUB_LLM_API_KEY"),
-            model=_require("SUBHUB_LLM_MODEL"),
-            system_prompt=_require("SUBHUB_SYSTEM_PROMPT"),
-            temperature=_float_env("SUBHUB_LLM_TEMPERATURE", 0.7),
-            max_history=_int_env("SUBHUB_LLM_MAX_HISTORY", 20),
-            vision_enabled=_bool_env("SUBHUB_LLM_VISION_ENABLED", False),
-            skills_dir=skills_dir,
-        ),
+        matrix=...,
+        llm=...,
         data=DataConfig(
             db_dir=db_dir,
             filename=os.environ.get("SUBHUB_DB_FILENAME", "subscriptions.json"),
@@ -455,6 +451,8 @@ def load_config(env_path: str | Path | None = ".env") -> AppConfig:
         log_level=os.environ.get("SUBHUB_LOG_LEVEL", "INFO").upper(),
     )
 ```
+
+When `require_bot_runtime=False`, `matrix` and `llm` may be `None` if the bot env vars are absent. When `require_bot_runtime=True`, missing or whitespace-only required Matrix/LLM values must raise `ValueError`.
 
 - [ ] **Step 4: Add explicit dismissed path support to store**
 
@@ -489,20 +487,35 @@ def test_dismissed_filepath_can_be_configured(tmp_path):
     assert dismissed_path.exists()
 ```
 
-- [ ] **Step 6: Run tests**
+- [ ] **Step 6: Use configured dismissed path in legacy API construction**
+
+Update both legacy store constructions so the configured dismissed filepath is honored until Task 8 removes the API:
+
+```python
+SubscriptionStore(config.data.filepath, dismissed_filepath=config.data.dismissed_filepath)
+```
+
+Apply this in:
+
+- `src/subhub/main.py`
+- `src/subhub/api.py`
+
+Add or update an API/default-construction test that sets a custom dismissed path, calls `/api/reminders/dismiss`, and asserts the custom file is written while the default sibling `dismissed.json` is not.
+
+- [ ] **Step 7: Run tests**
 
 Run:
 
 ```bash
-uv run pytest tests/test_config.py tests/test_store.py -v
+uv run pytest tests/test_config.py tests/test_store.py tests/test_api.py -v
 ```
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/subhub/config.py src/subhub/store.py tests/test_config.py tests/test_store.py
+git add src/subhub/config.py src/subhub/store.py src/subhub/api.py src/subhub/main.py tests/test_config.py tests/test_store.py tests/test_api.py
 git commit -m "feat: load bot runtime config from env"
 ```
 
