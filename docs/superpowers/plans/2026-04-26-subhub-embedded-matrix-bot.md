@@ -76,26 +76,27 @@
 
 ---
 
-### Task 1: Dependencies and Runtime Contract
+### Task 1: Add Bot Dependencies and Env Template
 
 **Files:**
 - Modify: `pyproject.toml`
-- Modify: `Makefile`
-- Delete: `config.toml`
 - Create: `.env.example`
 
-- [ ] **Step 1: Update dependencies**
+- [ ] **Step 1: Add bot runtime dependencies**
 
-Replace the project dependencies in `pyproject.toml` with:
+Keep the existing API dependencies until Task 8 removes the API entrypoint and tests. Add the bot runtime dependencies so the current API runtime remains testable during the transition:
 
 ```toml
 dependencies = [
     "aiofiles>=23.0.0",
     "aiohttp>=3.9.0",
     "aioboto3>=13.0.0",
+    "fastapi>=0.115.0",
+    "httpx>=0.27.0",
     "matrix-nio>=0.24.0",
     "openai>=1.0.0",
     "python-dotenv>=1.0.0",
+    "uvicorn>=0.30.0",
 ]
 
 [dependency-groups]
@@ -112,16 +113,7 @@ Keep the existing script:
 subhub = "subhub.main:main"
 ```
 
-- [ ] **Step 2: Update Makefile help text**
-
-Change `make run` help text from API wording to bot wording:
-
-```make
-run: ## Start the SubHub Matrix bot
-	$(UV) run subhub $(ARGS)
-```
-
-- [ ] **Step 3: Add `.env.example`**
+- [ ] **Step 2: Add `.env.example`**
 
 Create `.env.example`:
 
@@ -165,11 +157,7 @@ SUBHUB_DOWNLOAD_R2_FILES=false
 SUBHUB_LOG_LEVEL=INFO
 ```
 
-- [ ] **Step 4: Delete `config.toml`**
-
-Remove `config.toml` from the repo.
-
-- [ ] **Step 5: Sync dependencies**
+- [ ] **Step 3: Sync dependencies**
 
 Run:
 
@@ -179,12 +167,21 @@ make sync
 
 Expected: `uv sync` completes and `uv.lock` updates.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Verify legacy tests still run**
+
+Run:
 
 ```bash
-git add pyproject.toml uv.lock Makefile .env.example
-git rm config.toml
-git commit -m "chore: switch runtime dependencies to matrix bot"
+make test
+```
+
+Expected: PASS. This guards the transition until the API is removed in Task 8.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add pyproject.toml uv.lock .env.example
+git commit -m "chore: add matrix bot runtime dependencies"
 ```
 
 ---
@@ -1578,12 +1575,39 @@ git commit -m "feat: orchestrate bot and reminders"
 
 **Files:**
 - Modify: `src/subhub/main.py`
+- Modify: `pyproject.toml`
+- Modify: `Makefile`
+- Delete: `config.toml`
 - Delete: `src/subhub/api.py`
 - Delete: `src/subhub/webhook.py`
 - Delete: `tests/test_api.py`
 - Delete: `tests/test_webhook.py`
 
-- [ ] **Step 1: Rewrite `src/subhub/main.py`**
+- [ ] **Step 1: Remove legacy API dependencies**
+
+After API files and tests are removed in this task, replace project dependencies in `pyproject.toml` with:
+
+```toml
+dependencies = [
+    "aiofiles>=23.0.0",
+    "aiohttp>=3.9.0",
+    "aioboto3>=13.0.0",
+    "matrix-nio>=0.24.0",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
+```
+
+- [ ] **Step 2: Update Makefile help text**
+
+Change `make run` help text from API wording to bot wording:
+
+```make
+run: ## Start the SubHub Matrix bot
+	$(UV) run subhub $(ARGS)
+```
+
+- [ ] **Step 3: Rewrite `src/subhub/main.py`**
 
 Replace with:
 
@@ -1646,15 +1670,25 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 2: Delete API/webhook files and tests**
+- [ ] **Step 4: Delete API/webhook files, tests, and config.toml**
 
 Run:
 
 ```bash
-git rm src/subhub/api.py src/subhub/webhook.py tests/test_api.py tests/test_webhook.py
+git rm config.toml src/subhub/api.py src/subhub/webhook.py tests/test_api.py tests/test_webhook.py
 ```
 
-- [ ] **Step 3: Run full tests**
+- [ ] **Step 5: Sync dependencies**
+
+Run:
+
+```bash
+make sync
+```
+
+Expected: `uv sync` completes and `uv.lock` removes legacy API-only packages if no longer needed.
+
+- [ ] **Step 6: Run full tests**
 
 Run:
 
@@ -1664,10 +1698,10 @@ make test
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/subhub/main.py
+git add pyproject.toml uv.lock Makefile src/subhub/main.py
 git commit -m "refactor: remove api and start matrix bot"
 ```
 
