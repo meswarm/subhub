@@ -124,3 +124,42 @@ timeout_seconds = 7
     assert config.webhook.enabled is True
     assert config.matrix is None
     assert config.llm is None
+
+
+def test_load_config_legacy_mode_ignores_partial_matrix_env(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MATRIX_HOMESERVER", "https://matrix.example.com")
+
+    config = load_config(env_path=_empty_env_file(tmp_path), require_bot_runtime=False)
+
+    assert config.matrix is None
+
+
+def test_load_config_legacy_mode_ignores_partial_llm_env(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SUBHUB_LLM_BASE_URL", "https://llm.example.com/v1")
+
+    config = load_config(env_path=_empty_env_file(tmp_path), require_bot_runtime=False)
+
+    assert config.llm is None
+
+
+def test_load_config_loads_config_path_sibling_env(tmp_path, monkeypatch):
+    cwd = tmp_path / "cwd"
+    config_dir = tmp_path / "config"
+    cwd.mkdir()
+    config_dir.mkdir()
+    monkeypatch.chdir(cwd)
+    config_file = config_dir / "config.toml"
+    config_file.write_text(
+        """
+[server]
+port = 58001
+""",
+        encoding="utf-8",
+    )
+    (config_dir / ".env").write_text("SUBHUB_PORT=58002\n", encoding="utf-8")
+
+    config = load_config(config_path=str(config_file), env_path=None)
+
+    assert config.server.port == 58002

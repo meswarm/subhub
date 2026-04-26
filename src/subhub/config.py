@@ -172,10 +172,19 @@ def _env_str(name: str, default: str) -> str:
 
 
 def _load_legacy_config(config_path: str | None) -> dict:
+    path = _resolve_legacy_config_path(config_path)
+    if path is None:
+        return {}
+
+    with open(path, "rb") as f:
+        return tomllib.load(f)
+
+
+def _resolve_legacy_config_path(config_path: str | None) -> Path | None:
     if config_path is None:
         path = find_config()
         if path is None:
-            return {}
+            return None
     else:
         path = Path(config_path).expanduser()
         if not path.is_file():
@@ -184,11 +193,28 @@ def _load_legacy_config(config_path: str | None) -> dict:
                 raise FileNotFoundError(f"Config file not found: {config_path}")
             path = found
 
-    with open(path, "rb") as f:
-        return tomllib.load(f)
+    return path
+
+
+def _load_env(config_path: str | None, env_path: str | None) -> None:
+    if env_path is not None:
+        load_dotenv(env_path)
+        return
+
+    config = _resolve_legacy_config_path(config_path)
+    if config is not None:
+        sibling_env = config.parent / ".env"
+        if sibling_env.is_file():
+            load_dotenv(sibling_env)
+    load_dotenv()
+
+
+def _has_all_env(names: tuple[str, ...]) -> bool:
+    return all(os.environ.get(name) is not None for name in names)
 
 
 def _optional_matrix_config(require_bot_runtime: bool) -> MatrixConfig | None:
+    names = ("MATRIX_HOMESERVER", "MATRIX_USER", "MATRIX_PASSWORD", "MATRIX_ROOMS")
     if require_bot_runtime:
         return MatrixConfig(
             homeserver=_required_env("MATRIX_HOMESERVER"),
@@ -196,9 +222,7 @@ def _optional_matrix_config(require_bot_runtime: bool) -> MatrixConfig | None:
             password=_required_env("MATRIX_PASSWORD"),
             rooms=_matrix_rooms(),
         )
-    if not any(os.environ.get(name) is not None for name in (
-        "MATRIX_HOMESERVER", "MATRIX_USER", "MATRIX_PASSWORD", "MATRIX_ROOMS"
-    )):
+    if not _has_all_env(names):
         return None
     return MatrixConfig(
         homeserver=_required_env("MATRIX_HOMESERVER"),
@@ -209,6 +233,12 @@ def _optional_matrix_config(require_bot_runtime: bool) -> MatrixConfig | None:
 
 
 def _optional_llm_config(require_bot_runtime: bool) -> LLMConfig | None:
+    names = (
+        "SUBHUB_LLM_BASE_URL",
+        "SUBHUB_LLM_API_KEY",
+        "SUBHUB_LLM_MODEL",
+        "SUBHUB_SYSTEM_PROMPT",
+    )
     if require_bot_runtime:
         return LLMConfig(
             base_url=_required_env("SUBHUB_LLM_BASE_URL"),
@@ -216,10 +246,7 @@ def _optional_llm_config(require_bot_runtime: bool) -> LLMConfig | None:
             model=_required_env("SUBHUB_LLM_MODEL"),
             system_prompt=_required_env("SUBHUB_SYSTEM_PROMPT"),
         )
-    if not any(os.environ.get(name) is not None for name in (
-        "SUBHUB_LLM_BASE_URL", "SUBHUB_LLM_API_KEY",
-        "SUBHUB_LLM_MODEL", "SUBHUB_SYSTEM_PROMPT",
-    )):
+    if not _has_all_env(names):
         return None
     return LLMConfig(
         base_url=_required_env("SUBHUB_LLM_BASE_URL"),
@@ -233,10 +260,7 @@ def load_config(config_path: str | None = None,
                 env_path: str | None = None,
                 require_bot_runtime: bool = False) -> AppConfig:
     """加载 legacy config.toml、.env 和当前进程环境变量。"""
-    if env_path is None:
-        load_dotenv()
-    else:
-        load_dotenv(env_path)
+    _load_env(config_path, env_path)
 
     legacy = _load_legacy_config(config_path)
     legacy_data = legacy.get("data", {})
