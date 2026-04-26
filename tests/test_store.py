@@ -213,6 +213,33 @@ def test_dismissed_filepath_can_be_configured(tmp_path):
     assert not (tmp_path / "dismissed.json").exists()
 
 
+def test_mark_reminder_sent_persists_by_window(tmp_path):
+    store = SubscriptionStore(tmp_path / "subs.json")
+    sub = store.add(name="窗口提醒", account="a", payment_channel="b",
+                    amount=10.0, currency="CNY", billing_cycle="monthly",
+                    next_billing_date="2026-05-01", notes="")
+
+    assert store.has_sent_reminder(sub.id, 7, date(2026, 4, 24)) is False
+
+    store.mark_reminder_sent(sub.id, 7, date(2026, 4, 24))
+
+    assert store.has_sent_reminder(sub.id, 7, date(2026, 4, 24)) is True
+    assert store.has_sent_reminder(sub.id, 3, date(2026, 4, 28)) is False
+
+
+def test_reminder_sent_state_persists_across_instances(tmp_path):
+    filepath = tmp_path / "subs.json"
+    store1 = SubscriptionStore(filepath)
+    sub = store1.add(name="持久化窗口提醒", account="a", payment_channel="b",
+                     amount=10.0, currency="CNY", billing_cycle="monthly",
+                     next_billing_date="2026-05-01", notes="")
+    store1.mark_reminder_sent(sub.id, 7, date(2026, 4, 24))
+
+    store2 = SubscriptionStore(filepath)
+
+    assert store2.has_sent_reminder(sub.id, 7, date(2026, 4, 24)) is True
+
+
 # --- get_billing_in_month tests ---
 
 def test_get_billing_in_month(store):

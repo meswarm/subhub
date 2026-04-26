@@ -146,18 +146,9 @@ def build_subhub_tools(service: SubHubService) -> list[LocalTool]:
         ),
         LocalTool(
             "get_today_reminders",
-            "获取今天起即将扣款的提醒列表。",
-            _object_schema(
-                {
-                    "advance_days": {
-                        "type": "integer",
-                        "description": "提前提醒天数，留空时使用默认值",
-                    }
-                }
-            ),
-            lambda advance_days=None: service.get_today_reminders(
-                advance_days=advance_days
-            ),
+            "获取当前提醒窗口内即将扣款的提醒列表。",
+            _object_schema({}),
+            lambda: service.get_today_reminders(),
         ),
         LocalTool(
             "list_subscriptions",

@@ -36,6 +36,7 @@ class SubscriptionStore:
             if dismissed_filepath is not None
             else self._filepath.parent / "dismissed.json"
         )
+        self._sent_reminders_filepath = self._filepath.parent / "sent-reminders.json"
         self._load()
 
     def _load(self):
@@ -208,6 +209,39 @@ class SubscriptionStore:
         """清空所有已关闭提醒。"""
         with self._lock:
             self._save_dismissed({})
+
+    # --- 已发送提醒窗口持久化 ---
+
+    def _load_sent_reminders(self) -> dict[str, str]:
+        if self._sent_reminders_filepath.exists():
+            try:
+                with open(self._sent_reminders_filepath, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                return {}
+        return {}
+
+    def _save_sent_reminders(self, sent: dict[str, str]):
+        self._sent_reminders_filepath.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = self._sent_reminders_filepath.with_suffix(".tmp")
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(sent, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, self._sent_reminders_filepath)
+
+    def _sent_reminder_key(self, subscription_id: str, days_before: int) -> str:
+        return f"{subscription_id}:{days_before}"
+
+    def mark_reminder_sent(self, subscription_id: str, days_before: int, today: date):
+        with self._lock:
+            sent = self._load_sent_reminders()
+            sent[self._sent_reminder_key(subscription_id, days_before)] = today.isoformat()
+            self._save_sent_reminders(sent)
+
+    def has_sent_reminder(self, subscription_id: str, days_before: int, today: date) -> bool:
+        with self._lock:
+            sent = self._load_sent_reminders()
+            key = self._sent_reminder_key(subscription_id, days_before)
+            return sent.get(key) == today.isoformat()
 
     # --- 月度实际扣款查询 ---
 

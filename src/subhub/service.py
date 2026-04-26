@@ -27,10 +27,10 @@ class SubHubService:
 
     def __init__(self, store: SubscriptionStore,
                  base_currency: str = "CNY",
-                 reminder_advance_days: int = 3):
+                 reminder_days: list[int] | None = None):
         self.store = store
         self.base_currency = base_currency
-        self.reminder_advance_days = reminder_advance_days
+        self.reminder_days = list(reminder_days or [7, 3, 2, 1])
 
     def serialize_subscription(self, sub: Subscription) -> dict:
         return asdict(sub)
@@ -270,34 +270,30 @@ class SubHubService:
             "channels_text": channels["text"],
         }
 
-    def get_today_reminders(self, today: Optional[date] = None,
-                            advance_days: Optional[int] = None) -> dict:
+    def get_today_reminders(self, today: Optional[date] = None) -> dict:
         today = today or date.today()
-        advance_days = advance_days if advance_days is not None else self.reminder_advance_days
         self.store.auto_advance_expired(today)
-        upcoming = self.store.get_upcoming(today, advance_days)
-        dismissed = self.store.get_dismissed_reminders(today)
         items = []
-        for sub in upcoming:
-            if sub.id in dismissed:
-                continue
-            items.append({
-                "id": sub.id,
-                "name": sub.name,
-                "account": sub.account,
-                "payment_channel": sub.payment_channel,
-                "amount": _format_amount(sub.amount, sub.currency),
-                "currency": sub.currency,
-                "next_billing_date": sub.next_billing_date,
-                "days_left": advance_days,
-            })
+        for days_before in self.reminder_days:
+            for sub in self.store.get_upcoming(today, days_before):
+                items.append({
+                    "id": sub.id,
+                    "name": sub.name,
+                    "account": sub.account,
+                    "payment_channel": sub.payment_channel,
+                    "amount": _format_amount(sub.amount, sub.currency),
+                    "currency": sub.currency,
+                    "next_billing_date": sub.next_billing_date,
+                    "days_left": days_before,
+                })
         message = None
         if items:
+            items.sort(key=lambda item: (item["next_billing_date"], item["name"]))
             names = "、".join(item["name"] for item in items)
-            target_date = items[0]["next_billing_date"]
-            message = f"订阅提醒：{names} 将于 {target_date} 扣款。"
+            message = f"订阅提醒：{names} 即将扣款。"
         return {
             "date": today.isoformat(),
+            "reminder_days": list(self.reminder_days),
             "items": items,
             "message": message,
         }

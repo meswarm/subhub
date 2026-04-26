@@ -13,7 +13,7 @@ def registry(tmp_path):
         tmp_path / "subs.json",
         dismissed_filepath=tmp_path / "dismissed.json",
     )
-    service = SubHubService(store=store, base_currency="CNY", reminder_advance_days=3)
+    service = SubHubService(store=store, base_currency="CNY", reminder_days=[7, 3, 2, 1])
     return SubHubToolRegistry(build_subhub_tools(service))
 
 
@@ -60,3 +60,4 @@ async def test_get_today_reminders_tool(registry):
     result = json.loads(await registry.execute_tool("get_today_reminders"))
     assert result["ok"] is True
     assert "items" in result["data"]
+    assert "reminder_days" in result["data"]

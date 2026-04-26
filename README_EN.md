@@ -49,9 +49,35 @@ Copy `.env.example` to `.env` and fill in at least:
 - `SUBHUB_LLM_BASE_URL`
 - `SUBHUB_LLM_API_KEY`
 - `SUBHUB_LLM_MODEL`
-- `SUBHUB_SYSTEM_PROMPT`
+- `SUBHUB_SYSTEM_PROMPT_FILE`
 
-Default data files are `./db/subscriptions.json` and `./db/dismissed.json`. You can override them with `SUBHUB_DB_DIR`, `SUBHUB_DB_FILENAME`, and `SUBHUB_DISMISSED_FILENAME`.
+Store the system prompt in a dedicated Markdown file such as `prompts/system_prompt.md`, then point to it from `.env`:
+
+```env
+SUBHUB_SYSTEM_PROMPT_FILE=prompts/system_prompt.md
+```
+
+The contents of `prompts/system_prompt.md` should explicitly include runtime context placeholders, for example:
+
+```md
+You are a personal subscription management assistant. Always answer from the current context. Keep responses concise, accurate, and result-first.
+
+Today:
+{today_context}
+
+Current subscriptions:
+{subscriptions_context}
+
+Known accounts:
+{accounts_context}
+
+Known payment channels:
+{channels_context}
+```
+
+If you omit these placeholders, the model will not automatically receive the current subscription list, account context, or payment-channel context. `SUBHUB_SYSTEM_PROMPT` is still kept as a compatibility fallback.
+
+Default data files are `./db/subscriptions.json` and `./db/dismissed.json`, and sent reminder-window state is stored in `./db/sent-reminders.json`. You can override the data paths with `SUBHUB_DB_DIR`, `SUBHUB_DB_FILENAME`, and `SUBHUB_DISMISSED_FILENAME`.
 
 SubHub only accepts Matrix text messages. Images, videos, audio, and files are carried as `r2://` Markdown links in text. By default, only images are downloaded; videos, audio, and regular files are not downloaded or parsed.
 
@@ -85,7 +111,7 @@ subhub/
 
 ## Typical use
 
-Subscription management, reports, and reminder acknowledgements are handled naturally in Matrix rooms. The bot routes requests through local tools, produces reports, and formats reminder messages when needed.
+Subscription management, reports, and reminder acknowledgements are handled naturally in Matrix rooms. The bot routes requests through local tools, produces reports, and formats reminder messages when needed. By default, reminders are sent once at `7/3/2/1` days before billing.
 
 ## License
 

@@ -4,7 +4,7 @@ import asyncio
 import logging
 from datetime import date
 
-from subhub.reminder import check_reminders
+from subhub.reminder import check_reminder_windows
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,12 @@ async def reminder_loop(config, store, matrix_client, llm_engine=None) -> None:
     interval = max(config.reminder.check_interval_hours, 1) * 3600
     while True:
         try:
-            message = check_reminders(store, date.today(), config.reminder.advance_days)
-            if message:
+            messages = check_reminder_windows(
+                store,
+                date.today(),
+                config.reminder.reminder_days,
+            )
+            for message in messages:
                 text = await format_reminder_with_optional_llm(
                     message,
                     use_llm=config.reminder.use_llm,

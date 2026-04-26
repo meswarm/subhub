@@ -26,16 +26,50 @@ def check_reminders(store: SubscriptionStore, today: date,
     )
 
 
+def check_reminder_windows(
+    store: SubscriptionStore, today: date, reminder_days: list[int]
+) -> list[str]:
+    """检查多个提醒窗口。每个订阅在每个窗口当天只发送一次。"""
+    store.auto_advance_expired(today)
+    messages: list[str] = []
+
+    for days_before in reminder_days:
+        upcoming = store.get_upcoming(today, days_before)
+        unsent = []
+        for sub in upcoming:
+            if store.has_sent_reminder(sub.id, days_before, today):
+                continue
+            unsent.append(sub)
+
+        if not unsent:
+            continue
+
+        target_date = today + timedelta(days=days_before)
+        message = format_reminder_table(
+            unsent,
+            remind_date=target_date.isoformat(),
+            today=today.isoformat(),
+        )
+        if message:
+            message += "\n\n请回复你想继续续费还是删除该订阅；我会先展示完整信息，待你确认后再执行。"
+            messages.append(message)
+
+        for sub in unsent:
+            store.mark_reminder_sent(sub.id, days_before, today)
+
+    return messages
+
+
 class ReminderThread(threading.Thread):
     """后台提醒线程，定时检查扣款提醒和月末报表。"""
 
-    def __init__(self, store: SubscriptionStore, advance_days: int,
+    def __init__(self, store: SubscriptionStore, reminder_days: list[int],
                  check_interval_hours: int,
                  output_callback: Callable[[str], None],
                  base_currency: str = "CNY"):
         super().__init__(daemon=True)
         self.store = store
-        self.advance_days = advance_days
+        self.reminder_days = list(reminder_days)
         self.check_interval_seconds = check_interval_hours * 3600
         self.output_callback = output_callback
         self.base_currency = base_currency
@@ -49,13 +83,10 @@ class ReminderThread(threading.Thread):
     def run(self):
         while not self._stop_event.is_set():
             today = date.today()
-            if self._last_check_date and self._last_check_date != today:
-                self.store.clear_dismissed_reminders()
             self._last_check_date = today
 
             # 扣款提醒
-            output = check_reminders(self.store, today, self.advance_days)
-            if output:
+            for output in check_reminder_windows(self.store, today, self.reminder_days):
                 self.output_callback(output)
 
             # 月末最后一天自动生成月度报表

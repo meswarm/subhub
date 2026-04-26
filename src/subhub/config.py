@@ -33,8 +33,9 @@ class DataConfig:
 
 @dataclass
 class ReminderConfig:
-    advance_days: int
+    reminder_days: list[int]
     check_interval_hours: int
+    enabled: bool = True
     use_llm: bool = False
 
 
@@ -70,6 +71,27 @@ class LLMConfig:
     api_key: str
     model: str
     system_prompt: str
+    temperature: float = 0.7
+    max_history: int = 20
+    vision_enabled: bool = False
+    skills_dir: Path | None = None
+
+
+_DEFAULT_SKILLS_DIR = "skills/manage-subscriptions"
+_DEFAULT_SYSTEM_PROMPT_FILE = "prompts/system_prompt.md"
+
+
+@dataclass
+class R2Config:
+    endpoint: str = ""
+    access_key: str = ""
+    secret_key: str = ""
+    bucket: str = "link-media"
+    public_url: str = ""
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.endpoint and self.access_key and self.secret_key)
 
 
 @dataclass
@@ -90,11 +112,15 @@ class AppConfig:
     webhook: WebhookConfig = None
     matrix: MatrixConfig | None = None
     llm: LLMConfig | None = None
+    r2: R2Config | None = None
     download: DownloadConfig | None = None
+    log_level: str = "INFO"
 
     def __post_init__(self):
         if self.webhook is None:
             self.webhook = WebhookConfig()
+        if self.r2 is None:
+            self.r2 = R2Config()
         if self.download is None:
             self.download = DownloadConfig(root=Path(_DEFAULT_DOWNLOAD_DIR).resolve())
 
@@ -158,6 +184,13 @@ def _env_int(name: str, default: int) -> int:
     if value is None or value == "":
         return default
     return int(value)
+
+
+def _env_int_list(name: str, default: list[int]) -> list[int]:
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return list(default)
+    return [int(part.strip()) for part in value.split(",") if part.strip()]
 
 
 def _resolve_path(value: str) -> Path:
@@ -244,7 +277,11 @@ def _optional_llm_config(require_bot_runtime: bool) -> LLMConfig | None:
             base_url=_required_env("SUBHUB_LLM_BASE_URL"),
             api_key=_required_env("SUBHUB_LLM_API_KEY"),
             model=_required_env("SUBHUB_LLM_MODEL"),
-            system_prompt=_required_env("SUBHUB_SYSTEM_PROMPT"),
+            system_prompt=_load_system_prompt(require_required=True),
+            temperature=float(os.environ.get("SUBHUB_LLM_TEMPERATURE", "0.7")),
+            max_history=_env_int("SUBHUB_LLM_MAX_HISTORY", 20),
+            vision_enabled=_env_bool("SUBHUB_LLM_VISION_ENABLED", False),
+            skills_dir=_optional_skills_dir(),
         )
     if not _has_all_env(names):
         return None
@@ -252,8 +289,35 @@ def _optional_llm_config(require_bot_runtime: bool) -> LLMConfig | None:
         base_url=_required_env("SUBHUB_LLM_BASE_URL"),
         api_key=_required_env("SUBHUB_LLM_API_KEY"),
         model=_required_env("SUBHUB_LLM_MODEL"),
-        system_prompt=_required_env("SUBHUB_SYSTEM_PROMPT"),
+        system_prompt=_load_system_prompt(require_required=False),
+        temperature=float(os.environ.get("SUBHUB_LLM_TEMPERATURE", "0.7")),
+        max_history=_env_int("SUBHUB_LLM_MAX_HISTORY", 20),
+        vision_enabled=_env_bool("SUBHUB_LLM_VISION_ENABLED", False),
+        skills_dir=_optional_skills_dir(),
     )
+
+
+def _optional_skills_dir() -> Path | None:
+    raw = os.environ.get("SUBHUB_SKILLS_DIR", _DEFAULT_SKILLS_DIR).strip()
+    if not raw:
+        return None
+    return _resolve_path(raw)
+
+
+def _load_system_prompt(require_required: bool) -> str:
+    prompt_file = os.environ.get("SUBHUB_SYSTEM_PROMPT_FILE", _DEFAULT_SYSTEM_PROMPT_FILE).strip()
+    if prompt_file:
+        path = _resolve_path(prompt_file)
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    prompt = os.environ.get("SUBHUB_SYSTEM_PROMPT", "")
+    if prompt.strip():
+        return prompt
+    if require_required:
+        raise ValueError(
+            "Missing required environment variable: SUBHUB_SYSTEM_PROMPT or SUBHUB_SYSTEM_PROMPT_FILE"
+        )
+    return prompt
 
 
 def load_config(config_path: str | None = None,
@@ -289,8 +353,10 @@ def load_config(config_path: str | None = None,
             port=_env_int("SUBHUB_PORT", legacy_server.get("port", 8000)),
         ),
         reminder=ReminderConfig(
-            advance_days=_env_int(
-                "SUBHUB_REMINDER_ADVANCE_DAYS", legacy_reminder.get("advance_days", 3)
+            enabled=_env_bool("SUBHUB_REMINDER_ENABLED", True),
+            reminder_days=_env_int_list(
+                "SUBHUB_REMINDER_DAYS",
+                legacy_reminder.get("reminder_days", [7, 3, 2, 1]),
             ),
             check_interval_hours=_env_int(
                 "SUBHUB_REMINDER_CHECK_INTERVAL_HOURS",
@@ -316,6 +382,13 @@ def load_config(config_path: str | None = None,
         ),
         matrix=_optional_matrix_config(require_bot_runtime),
         llm=_optional_llm_config(require_bot_runtime),
+        r2=R2Config(
+            endpoint=os.environ.get("R2_ENDPOINT", ""),
+            access_key=os.environ.get("R2_ACCESS_KEY", ""),
+            secret_key=os.environ.get("R2_SECRET_KEY", ""),
+            bucket=os.environ.get("R2_BUCKET", "link-media"),
+            public_url=os.environ.get("R2_PUBLIC_URL", ""),
+        ),
         download=DownloadConfig(
             root=_resolve_path(os.environ.get("SUBHUB_DOWNLOAD_DIR", _DEFAULT_DOWNLOAD_DIR)),
             images=_env_bool("SUBHUB_DOWNLOAD_R2_IMAGES", True),
@@ -323,4 +396,5 @@ def load_config(config_path: str | None = None,
             audios=_env_bool("SUBHUB_DOWNLOAD_R2_AUDIOS", False),
             files=_env_bool("SUBHUB_DOWNLOAD_R2_FILES", False),
         ),
+        log_level=os.environ.get("SUBHUB_LOG_LEVEL", "INFO").upper(),
     )

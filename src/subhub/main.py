@@ -17,7 +17,11 @@ def _configure_logging(level: str) -> None:
     logging.basicConfig(
         level=getattr(logging, level, logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        force=True,
     )
+    logging.getLogger("nio").setLevel(logging.WARNING)
+    logging.getLogger("nio.rooms").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 async def _amain(env_path: str | None) -> None:

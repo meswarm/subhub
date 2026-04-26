@@ -9,6 +9,13 @@ logger = logging.getLogger(__name__)
 MessageCallback = Callable[[str, str, str], Awaitable[None]]
 
 
+def _preview_text(text: str, limit: int = 160) -> str:
+    compact = " ".join((text or "").split())
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[:limit - 3]}..."
+
+
 class MatrixTextClient:
     def __init__(
         self,
@@ -52,10 +59,17 @@ class MatrixTextClient:
             return
         if not self._first_sync_done:
             return
+        logger.info(
+            "Received Matrix text event in %s from %s: %s",
+            room.room_id,
+            event.sender,
+            _preview_text(event.body),
+        )
         if self._callback:
             await self._callback(room.room_id, event.sender, event.body)
 
     async def send_text(self, room_id: str, text: str) -> None:
+        logger.info("Sending Matrix text event to %s: %s", room_id, _preview_text(text))
         await self._client.room_send(
             room_id=room_id,
             message_type="m.room.message",
