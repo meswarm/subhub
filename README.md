@@ -77,6 +77,14 @@ SUBHUB_SYSTEM_PROMPT_FILE=prompts/system_prompt.md
 
 如果不写这些占位符，模型不会自动看到当前订阅列表、账号和支付渠道上下文。仍然保留 `SUBHUB_SYSTEM_PROMPT` 作为兼容回退。
 
+如需显式控制 DashScope/Qwen 的思考模式，可在 `.env` 中设置：
+
+```env
+SUBHUB_LLM_THINKING_ENABLED=false
+```
+
+配置后请求会通过 OpenAI-compatible `extra_body.enable_thinking` 传给模型服务；未配置时不传该参数。
+
 默认数据文件为 `./db/subscriptions.json`，提醒忽略状态为 `./db/dismissed.json`，已发送提醒窗口状态为 `./db/sent-reminders.json`。可通过 `SUBHUB_DB_DIR`、`SUBHUB_DB_FILENAME`、`SUBHUB_DISMISSED_FILENAME` 调整。
 
 SubHub 只接收 Matrix 文本消息。图片、视频、音频和文件通过文本中的 `r2://` Markdown 链接传递；默认只下载图片，视频、音频和普通文件不下载也不解析。

@@ -48,6 +48,7 @@ def test_load_config_defaults(tmp_path, monkeypatch):
     assert config.llm.temperature == 0.7
     assert config.llm.max_history == 20
     assert config.llm.vision_enabled is False
+    assert config.llm.thinking_enabled is None
     assert config.llm.skills_dir == (tmp_path / "skills" / "manage-subscriptions").resolve()
     assert config.r2.enabled is False
     assert config.log_level == "INFO"
@@ -79,6 +80,7 @@ def test_load_config_reads_vision_and_r2_settings(tmp_path, monkeypatch):
     monkeypatch.setenv("SUBHUB_LLM_TEMPERATURE", "0.3")
     monkeypatch.setenv("SUBHUB_LLM_MAX_HISTORY", "9")
     monkeypatch.setenv("SUBHUB_LLM_VISION_ENABLED", "true")
+    monkeypatch.setenv("SUBHUB_LLM_THINKING_ENABLED", "false")
     monkeypatch.setenv("SUBHUB_SKILLS_DIR", "custom-skills")
     monkeypatch.setenv("SUBHUB_REMINDER_ENABLED", "false")
     monkeypatch.setenv("SUBHUB_LOG_LEVEL", "debug")
@@ -93,6 +95,7 @@ def test_load_config_reads_vision_and_r2_settings(tmp_path, monkeypatch):
     assert config.llm.temperature == 0.3
     assert config.llm.max_history == 9
     assert config.llm.vision_enabled is True
+    assert config.llm.thinking_enabled is False
     assert config.llm.skills_dir == (tmp_path / "custom-skills").resolve()
     assert config.reminder.enabled is False
     assert config.r2.enabled is True

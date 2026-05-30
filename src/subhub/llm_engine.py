@@ -2,12 +2,19 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import re
+from time import perf_counter
 from pathlib import Path
 from typing import Any, Callable
 
 MAX_TOOL_CALL_ROUNDS = 10
 _IMAGE_TAG_PATTERN = re.compile(r"\[image:(.+?):(.+?)\]")
+logger = logging.getLogger(__name__)
+
+
+def _elapsed_ms(started_at: float) -> float:
+    return (perf_counter() - started_at) * 1000
 
 
 class LLMEngine:
@@ -22,6 +29,7 @@ class LLMEngine:
         temperature: float = 0.7,
         max_history: int = 20,
         vision_enabled: bool = False,
+        thinking_enabled: bool | None = None,
     ):
         self._client = client
         self._model = model
@@ -32,6 +40,7 @@ class LLMEngine:
         self._temperature = temperature
         self._max_history = max_history
         self._vision_enabled = vision_enabled
+        self._thinking_enabled = thinking_enabled
         self._histories: dict[str, list[dict[str, Any]]] = {}
 
     def _history(self, room_id: str) -> list[dict[str, Any]]:
@@ -79,6 +88,7 @@ class LLMEngine:
         return parts
 
     async def chat(self, room_id: str, user_message: str) -> str:
+        chat_started_at = perf_counter()
         history = self._history(room_id)
         history.append({"role": "user", "content": self._user_content(user_message)})
         messages = self._messages(room_id)
@@ -89,6 +99,7 @@ class LLMEngine:
         )
 
         for _round in range(MAX_TOOL_CALL_ROUNDS):
+            round_number = _round + 1
             kwargs = {
                 "model": self._model,
                 "messages": messages,
@@ -96,12 +107,25 @@ class LLMEngine:
             }
             if tools:
                 kwargs["tools"] = tools
+            if self._thinking_enabled is not None:
+                kwargs["extra_body"] = {"enable_thinking": self._thinking_enabled}
+            request_started_at = perf_counter()
             completion = await self._client.chat.completions.create(**kwargs)
+            logger.info(
+                "LLM request round %s completed in %.1f ms",
+                round_number,
+                _elapsed_ms(request_started_at),
+            )
             assistant_message = completion.choices[0].message
             if not assistant_message.tool_calls:
                 content = assistant_message.content or ""
                 history.append({"role": "assistant", "content": content})
                 self._trim(room_id)
+                logger.info(
+                    "LLM chat completed in %.1f ms after %s round(s)",
+                    _elapsed_ms(chat_started_at),
+                    round_number,
+                )
                 return content
             messages.append(
                 {
@@ -125,8 +149,14 @@ class LLMEngine:
                     args = json.loads(call.function.arguments or "{}")
                 except json.JSONDecodeError:
                     args = {}
+                tool_started_at = perf_counter()
                 result = await self._tool_registry.execute_tool(
                     call.function.name, **args
+                )
+                logger.info(
+                    "Tool call %s completed in %.1f ms",
+                    call.function.name,
+                    _elapsed_ms(tool_started_at),
                 )
                 messages.append(
                     {
@@ -139,10 +169,16 @@ class LLMEngine:
         content = "抱歉，操作步骤过多，我需要简化处理方式。请重新描述你的需求。"
         history.append({"role": "assistant", "content": content})
         self._trim(room_id)
+        logger.info(
+            "LLM chat stopped after %.1f ms and %s round(s)",
+            _elapsed_ms(chat_started_at),
+            MAX_TOOL_CALL_ROUNDS,
+        )
         return content
 
     async def format_notification(self, payload: dict[str, Any]) -> str:
         prompt = json.dumps(payload, ensure_ascii=False, indent=2)
+        started_at = perf_counter()
         completion = await self._client.chat.completions.create(
             model=self._model,
             messages=[
@@ -153,5 +189,9 @@ class LLMEngine:
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,
+        )
+        logger.info(
+            "LLM notification formatting completed in %.1f ms",
+            _elapsed_ms(started_at),
         )
         return completion.choices[0].message.content or payload.get("message", "")

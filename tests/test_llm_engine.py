@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -105,6 +106,25 @@ async def test_llm_engine_executes_tool_calls():
 
 
 @pytest.mark.asyncio
+async def test_llm_engine_logs_llm_and_tool_timings(caplog):
+    registry = FakeRegistry()
+    engine = LLMEngine(
+        client=FakeClient(),
+        model="test-model",
+        system_prompt="prompt",
+        tool_registry=registry,
+    )
+    caplog.set_level(logging.INFO, logger="subhub.llm_engine")
+
+    await engine.chat("room", "列出订阅")
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("LLM request round 1 completed" in message for message in messages)
+    assert any("Tool call list_subscriptions completed" in message for message in messages)
+    assert any("LLM chat completed" in message for message in messages)
+
+
+@pytest.mark.asyncio
 async def test_llm_engine_converts_image_tags_to_placeholders(tmp_path):
     image = tmp_path / "shot.png"
     image.write_bytes(b"fake")
@@ -122,3 +142,20 @@ async def test_llm_engine_converts_image_tags_to_placeholders(tmp_path):
 
     first_request = engine._client.chat.completions.requests[0]
     assert first_request["messages"][1]["content"].startswith("看看这个 [用户发送了一张图片:")
+
+
+@pytest.mark.asyncio
+async def test_llm_engine_sends_thinking_setting():
+    registry = FakeRegistry()
+    engine = LLMEngine(
+        client=FakeClient(),
+        model="test-model",
+        system_prompt="prompt",
+        tool_registry=registry,
+        thinking_enabled=False,
+    )
+
+    await engine.chat("room", "列出订阅")
+
+    first_request = engine._client.chat.completions.requests[0]
+    assert first_request["extra_body"] == {"enable_thinking": False}

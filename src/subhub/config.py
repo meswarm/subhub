@@ -74,6 +74,7 @@ class LLMConfig:
     temperature: float = 0.7
     max_history: int = 20
     vision_enabled: bool = False
+    thinking_enabled: bool | None = None
     skills_dir: Path | None = None
 
 
@@ -179,6 +180,13 @@ def _env_bool(name: str, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_optional_bool(name: str) -> bool | None:
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return None
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _env_int(name: str, default: int) -> int:
     value = os.environ.get(name)
     if value is None or value == "":
@@ -281,6 +289,7 @@ def _optional_llm_config(require_bot_runtime: bool) -> LLMConfig | None:
             temperature=float(os.environ.get("SUBHUB_LLM_TEMPERATURE", "0.7")),
             max_history=_env_int("SUBHUB_LLM_MAX_HISTORY", 20),
             vision_enabled=_env_bool("SUBHUB_LLM_VISION_ENABLED", False),
+            thinking_enabled=_env_optional_bool("SUBHUB_LLM_THINKING_ENABLED"),
             skills_dir=_optional_skills_dir(),
         )
     if not _has_all_env(names):
@@ -293,6 +302,7 @@ def _optional_llm_config(require_bot_runtime: bool) -> LLMConfig | None:
         temperature=float(os.environ.get("SUBHUB_LLM_TEMPERATURE", "0.7")),
         max_history=_env_int("SUBHUB_LLM_MAX_HISTORY", 20),
         vision_enabled=_env_bool("SUBHUB_LLM_VISION_ENABLED", False),
+        thinking_enabled=_env_optional_bool("SUBHUB_LLM_THINKING_ENABLED"),
         skills_dir=_optional_skills_dir(),
     )
 

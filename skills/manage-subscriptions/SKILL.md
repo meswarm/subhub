@@ -1,91 +1,56 @@
 ---
 name: manage-subscriptions
-description: Queries, creates, updates, deletes, reports on, and dismisses reminders for subscription records when users ask to 查看订阅、添加订阅、修改订阅、删除订阅、生成月报、统计本月花费、确认扣款提醒，或需要先查后改、先查后删的订阅管理对话。
+description: 处理订阅查询、添加、修改、删除、月报、扣款提醒等个人订阅管理对话。
 ---
 
 # Manage Subscriptions
 
-Use this skill for subscription-management requests handled by the embedded SubHub bot tools.
+你处理的是 SubHub 内嵌工具对话。优先使用系统提示词中已经提供的预置上下文；只有上下文不足、需要精确工具结果、需要生成报表或需要执行写操作时才调用工具。
 
-Read `references/domain-rules.md` when the user uses relative dates, omits `billing_cycle`, asks to infer `next_billing_date`, or the target subscription is ambiguous.
+## 预置上下文
 
-## Task Progress
+每轮对话已经包含以下实时信息：
 
-- [ ] Step 1: Classify the request as query, create, update, delete, report, or reminder confirmation
-- [ ] Step 2: Gather required fields or identify the target subscription
-- [ ] Step 3: Call the safest tool sequence
-- [ ] Step 4: Return the tool result in concise Chinese
+- 今天日期：`{today_context}`
+- 当前订阅列表：`{subscriptions_context}`
+- 常用账号列表：`{accounts_context}`
+- 常用支付渠道列表：`{channels_context}`
 
-## Defaults
+如果用户只是普通查询，例如“当前我有哪些订阅”“有哪些订阅”“查看订阅”“订阅列表”“我的订阅”，直接基于 `{subscriptions_context}` 回复，不要调用工具。
 
-- For create, once a candidate `name` is known, check existing subscriptions with `list_subscriptions` before creating.
-- Use `list_subscriptions` first for update or delete unless a unique `id` is already known.
-- Use `generate_monthly_report` with `mode=actual` for “本月花了多少/本月实际扣了多少”.
-- Use `generate_monthly_report` with `mode=budget` for “月报/预算/每月总费用”.
-- Use `get_today_reminders` for “最近要扣款/快到期/有哪些要提醒”.
-- Use `dismiss_reminder` when the user says “知道了”“已处理”“我会取消”.
+如果用户只是询问已有账号或支付渠道，直接基于 `{accounts_context}` 或 `{channels_context}` 回复，不要调用工具。
 
-## Required fields for create
+## 何时调用工具
 
-Do not call `create_subscription` until these are known:
+- `list_subscriptions`：仅在预置上下文无法满足过滤、定位、去重或确认目标时使用。
+- `get_today_reminders`：用户询问最近扣款、快到期、提醒列表，并且预置上下文不足以直接判断时使用。
+- `generate_monthly_report`：用户明确要月报、预算、统计本月费用或实际扣款时使用。
+- `create_subscription`：用户确认新增订阅后使用。
+- `update_subscription`：用户确认修改订阅后使用。
+- `delete_subscription`：用户确认删除订阅后使用。
+- `dismiss_reminder`：用户明确表示某条提醒已处理、知道了、不再提醒时使用。
 
-- `name`
-- `account`
-- `payment_channel`
-- `amount`
-- `currency`
-- `billing_cycle`
-- `next_billing_date` unless `billing_cycle=permanent`
+## 写操作规则
 
-`notes` is optional.
+新增、修改、删除都必须先展示完整信息并等待用户确认。确认前不要调用写工具。
 
-## Safe tool sequences
+- 新增：收集 `name`、`account`、`payment_channel`、`amount`、`currency`、`billing_cycle`、`next_billing_date`，整理完整信息后询问确认。
+- 修改：展示修改前后对比，询问确认。
+- 删除：展示即将删除的完整订阅信息，询问确认。
+- 多个候选目标时，列出候选并追问，不要猜测。
 
-### Query
+用户确认后再调用对应工具。操作完成后，输出工具返回的结果；如果工具返回了最新订阅列表，展示最新列表。
 
-- General lookup -> `list_subscriptions`
-- Upcoming charge check -> `get_today_reminders`
-- Monthly spending or budget -> `generate_monthly_report`
+## 日期与字段规则
 
-### Create
+当用户使用相对日期、缺少 `billing_cycle`、需要推断 `next_billing_date`，或目标订阅不明确时，参考 `references/domain-rules.md`。
 
-1. Collect missing fields
-2. Once `name` is known, query with `list_subscriptions`
-3. If existing items share the same name, especially with different `account`, `payment_channel`, `amount`, or `billing_cycle`, explain the conflict and ask whether this should be added as a separate subscription
-4. Summarize the final candidate subscription and ask the user to confirm it is correct
-5. Only after explicit confirmation, call `create_subscription`
-6. Call `list_subscriptions` again and show the updated list
+不要编造订阅、日期、金额、币种、账号或支付渠道。缺少关键信息时只追问必要字段。
 
-### Update
+## 回复规则
 
-1. Query with `list_subscriptions`
-2. If multiple matches exist, ask the user to confirm one target
-3. Call `update_subscription`, preferring `id` over `selector_name`
-
-### Delete
-
-1. Query with `list_subscriptions`
-2. Show the exact target subscription to the user
-3. Ask for explicit confirmation even if the target is unique
-4. Only after explicit confirmation, call `delete_subscription`, preferring `id` over `name`
-5. Call `list_subscriptions` again and show the updated list
-
-### Reminder confirmation
-
-- One subscription confirmed -> `dismiss_reminder` with that `id` or name
-- User confirms all reminders -> `dismiss_reminder` with `target=all`
-
-## Response rules
-
-- Always reply in Chinese.
-- Keep replies concise and result-first.
-- Prefer concise markdown returned by tools for tables and reports.
-- Do not add greetings, closing pleasantries, or proactive suggestions unless the user explicitly asks.
-- Do not use blockquotes.
-- Avoid emoji unless the user explicitly wants them.
-- Do not invent subscriptions, dates, amounts, or currencies.
-- If key information is missing, ask a focused follow-up instead of acting.
-- If a destructive action is ambiguous, query first and confirm.
-- For delete, never execute immediately after lookup; always wait for a clear user confirmation.
-- For create, never execute immediately after field collection; always show a summary and wait for a clear user confirmation.
-- After successful create or delete, always show the refreshed subscription list.
+- 始终使用中文。
+- 结果优先，简洁直接。
+- 使用 Markdown，但不要使用一级或二级标题。
+- 不使用问候语、寒暄、引用格式或表情符号。
+- 普通查询能由预置上下文回答时，直接回答，避免工具调用。

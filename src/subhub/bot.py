@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
+from time import perf_counter
 
 from openai import AsyncOpenAI
 
@@ -23,6 +24,10 @@ def _preview_text(text: str, limit: int = 160) -> str:
     if len(compact) <= limit:
         return compact
     return f"{compact[:limit - 3]}..."
+
+
+def _elapsed_ms(started_at: float) -> float:
+    return (perf_counter() - started_at) * 1000
 
 
 class SubHubBot:
@@ -73,38 +78,75 @@ class SubHubBot:
             temperature=llm_config.temperature,
             max_history=llm_config.max_history,
             vision_enabled=llm_config.vision_enabled,
+            thinking_enabled=llm_config.thinking_enabled,
         )
         self._matrix.on_message(self._handle_message)
 
     async def _handle_message(self, room_id: str, sender: str, content: str) -> None:
+        total_started_at = perf_counter()
         logger.info(
             "Handling Matrix message from %s in %s: %s",
             sender,
             room_id,
             _preview_text(content),
         )
+        typing_started_at = perf_counter()
         await self._matrix.set_typing(room_id, True)
+        logger.info(
+            "Matrix typing-on completed for %s in %.1f ms",
+            room_id,
+            _elapsed_ms(typing_started_at),
+        )
         try:
+            resolve_started_at = perf_counter()
             resolved = await self._attachments.resolve(content)
+            logger.info(
+                "Attachment resolution completed for %s in %.1f ms",
+                room_id,
+                _elapsed_ms(resolve_started_at),
+            )
             if resolved.content != content:
                 logger.info(
                     "Resolved message content for %s: %s",
                     room_id,
                     _preview_text(resolved.content),
                 )
+            llm_started_at = perf_counter()
             reply = await self._llm.chat(room_id, resolved.content)
+            logger.info(
+                "LLM reply generation completed for %s in %.1f ms",
+                room_id,
+                _elapsed_ms(llm_started_at),
+            )
             if reply.strip():
                 logger.info(
                     "Sending Matrix reply to %s: %s",
                     room_id,
                     _preview_text(reply),
                 )
+                send_started_at = perf_counter()
                 await self._matrix.send_text(room_id, reply)
+                logger.info(
+                    "Matrix reply send completed for %s in %.1f ms",
+                    room_id,
+                    _elapsed_ms(send_started_at),
+                )
         except Exception:
             logger.exception("Message handling failed")
             await self._matrix.send_text(room_id, "抱歉，处理你的消息时出现了问题。")
         finally:
+            typing_started_at = perf_counter()
             await self._matrix.set_typing(room_id, False)
+            logger.info(
+                "Matrix typing-off completed for %s in %.1f ms",
+                room_id,
+                _elapsed_ms(typing_started_at),
+            )
+            logger.info(
+                "Matrix message handling completed for %s in %.1f ms",
+                room_id,
+                _elapsed_ms(total_started_at),
+            )
 
     async def start(self) -> None:
         if not await self._matrix.login():

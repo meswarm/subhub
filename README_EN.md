@@ -77,6 +77,14 @@ Known payment channels:
 
 If you omit these placeholders, the model will not automatically receive the current subscription list, account context, or payment-channel context. `SUBHUB_SYSTEM_PROMPT` is still kept as a compatibility fallback.
 
+To explicitly control DashScope/Qwen thinking mode, set:
+
+```env
+SUBHUB_LLM_THINKING_ENABLED=false
+```
+
+When configured, SubHub sends it as OpenAI-compatible `extra_body.enable_thinking`; when omitted, SubHub does not send this provider-specific parameter.
+
 Default data files are `./db/subscriptions.json` and `./db/dismissed.json`, and sent reminder-window state is stored in `./db/sent-reminders.json`. You can override the data paths with `SUBHUB_DB_DIR`, `SUBHUB_DB_FILENAME`, and `SUBHUB_DISMISSED_FILENAME`.
 
 SubHub only accepts Matrix text messages. Images, videos, audio, and files are carried as `r2://` Markdown links in text. By default, only images are downloaded; videos, audio, and regular files are not downloaded or parsed.
